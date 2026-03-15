@@ -33,23 +33,30 @@ const router = express.Router();
  */
 router.get('/stations', async (req, res) => {
   try {
+    console.log('🔍 Stations endpoint called with query:', req.query);
+    
     const restaurantId = req.query.restaurant_id as string || 'c1cbea71-ece5-4d63-bb12-fe06b03d1140';
+    console.log('🏪 Using restaurant ID:', restaurantId);
 
+    console.log('📡 Making Supabase query...');
     const { data, error } = await supabase
       .from('kds_stations')
       .select('*')
       .eq('restaurant_id', restaurantId)
       .order('display_order', { ascending: true });
 
+    console.log('📊 Supabase response - data:', data?.length, 'error:', error);
+
     if (error) {
-      console.error('Database error fetching stations:', error);
-      return res.status(500).json({ error: 'Failed to fetch stations' });
+      console.error('❌ Database error fetching stations:', error);
+      return res.status(500).json({ error: 'Database error: ' + error.message });
     }
 
+    console.log('✅ Sending stations response:', data?.length || 0, 'stations');
     res.json({ stations: data || [] });
   } catch (error) {
-    console.error('Error fetching stations:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('💥 Catch block error fetching stations:', error);
+    res.status(500).json({ error: 'Catch error: ' + (error instanceof Error ? error.message : 'Unknown error') });
   }
 });
 
