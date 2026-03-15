@@ -1,8 +1,11 @@
+import dotenv from "dotenv";
+// ⚡ Load environment variables FIRST before any other imports
+dotenv.config();
+
 import express from "express";
 import cors from "cors";
 import { createServer } from "http";
 import { Server as SocketIOServer } from "socket.io";
-import dotenv from "dotenv";
 import ordersRoutes from "./routes/orders";
 import stationsRoutes from "./routes/stations";
 import stationsManagementRoutes from "./routes/stations-management";
@@ -13,8 +16,6 @@ import { errorHandler } from "./middleware/error-handler";
 import { requestLogger } from "./middleware/request-logger";
 import { setupSwagger } from "./config/swagger";
 import { initializeDatabase, getDatabaseStatus } from "./lib/database";
-
-dotenv.config();
 
 const app = express();
 const server = createServer(app);
