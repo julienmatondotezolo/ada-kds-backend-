@@ -34,10 +34,10 @@ export async function checkDatabaseConnection(): Promise<boolean> {
   }
   
   try {
-    const { data, error } = await supabase
-      .from('kds_orders')
-      .select('id')
-      .limit(1);
+    // Simple connectivity test - just query a table that we know exists
+    const { error } = await supabase
+      .from('kds_stations')
+      .select('count(*)', { count: 'exact', head: true });
       
     isSupabaseConnected = !error;
     connectionLastChecked = now;
