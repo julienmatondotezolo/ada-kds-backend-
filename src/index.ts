@@ -29,25 +29,28 @@ const server = createServer(app);
 const PORT = 5005; // AdaKDS fixed port in 5000-5999 range
 const startTime = Date.now();
 
+// ─── CORS Configuration ──────────────────────────────────────────────────
+const allowedOrigins = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(",").map((o) => o.trim())
+  : ["https://kds.adasystems.app"];
+
+console.log('🔗 CORS allowed origins:', allowedOrigins);
+
 // ─── Socket.IO for real-time updates ──────────────────────────────────────
 const io = new SocketIOServer(server, {
   cors: {
-    origin: process.env.CORS_ORIGINS?.split(",") || "*",
-    methods: ["GET", "POST"]
+    origin: allowedOrigins,
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
 // Make io available to routes
 app.set('io', io);
 
-// ─── CORS ──────────────────────────────────────────────────────────────────
-const allowedOrigins = process.env.CORS_ORIGINS
-  ? process.env.CORS_ORIGINS.split(",").map((o) => o.trim())
-  : undefined;
-
 app.use(
   cors({
-    origin: allowedOrigins || true,
+    origin: allowedOrigins,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: [
       "Content-Type",

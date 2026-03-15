@@ -43,7 +43,13 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
                       status === 'completed' ? 'COMPLETED' : status;
     }
 
-    const result = await getOrders(restaurantId, filters);
+    let result;
+    try {
+      result = await getOrders(restaurantId, filters);
+    } catch (dbError) {
+      console.error('Database function threw error:', dbError);
+      result = { success: false, error: dbError };
+    }
 
     if (!result.success) {
       console.error('Database error:', result.error);

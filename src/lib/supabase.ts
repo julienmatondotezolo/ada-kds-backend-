@@ -61,8 +61,20 @@ export interface KdsStation {
 // Transform raw order data to KDS format
 export function transformToKdsOrder(order: any): KdsOrder {
   const now = new Date();
-  const orderTime = new Date(order.created_time);
-  const elapsedSeconds = Math.floor((now.getTime() - orderTime.getTime()) / 1000);
+  // Handle different date field names (created_time vs created_at)
+  const createdTimeStr = order.created_time || order.created_at || order.order_time || new Date().toISOString();
+  let orderTime = new Date(createdTimeStr);
+  let elapsedSeconds: number;
+  
+  // Validate the date
+  if (isNaN(orderTime.getTime())) {
+    console.warn(`Invalid date for order ${order.id}:`, createdTimeStr);
+    // Fallback to current time minus 5 minutes for demo
+    orderTime = new Date(Date.now() - 5 * 60 * 1000);
+    elapsedSeconds = 300; // 5 minutes
+  } else {
+    elapsedSeconds = Math.floor((now.getTime() - orderTime.getTime()) / 1000);
+  }
   
   // Assign station based on simple logic
   const assignStation = (): 'hot_kitchen' | 'cold_prep' | 'grill' | 'bar' => {
@@ -98,19 +110,33 @@ export function transformToKdsOrder(order: any): KdsOrder {
     return items;
   };
 
-  const items = parseItems(order.meals);
+  // Handle items - either from order.items (in-memory) or order.meals (legacy)
+  let items: KdsOrderItem[];
+  if (order.items && Array.isArray(order.items)) {
+    // Use existing items from in-memory orders
+    items = order.items.map((item: any) => ({
+      name: item.name,
+      quantity: item.quantity || 1,
+      estimated_time: item.estimated_time || 10,
+      special_requests: item.special_requests || ""
+    }));
+  } else {
+    // Fallback to parsing meals string for legacy format
+    items = parseItems(order.meals || "1");
+  }
+  
   const totalPrepTime = items.reduce((sum, item) => sum + item.estimated_time * item.quantity, 0);
 
   return {
     id: order.id,
-    order_number: `KDS${order.id.slice(-3).toUpperCase()}`,
-    restaurant_id: 'demo-restaurant', // Default restaurant ID for demo
+    order_number: order.order_number || `KDS${order.id.slice(-3).toUpperCase()}`,
+    restaurant_id: order.restaurant_id || 'demo-restaurant',
     status: mapOrderStatus(order.status),
     station: assignStation(),
     priority: elapsedSeconds > 1200 ? 'high' : 'normal', // High priority if over 20 minutes
     items,
-    customer_name: order.table,
-    order_time: order.created_time,
+    customer_name: order.customer_name || order.table || "Unknown Customer",
+    order_time: orderTime.toISOString(),
     estimated_ready_time: new Date(orderTime.getTime() + totalPrepTime * 60000).toISOString(),
     elapsed_time: elapsedSeconds,
     total_prep_time: Math.ceil(totalPrepTime)
