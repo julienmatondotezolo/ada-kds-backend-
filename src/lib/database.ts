@@ -13,7 +13,8 @@ interface InMemoryOrder {
   status: string;
   customer_name: string;
   items: any[];
-  created_time: string;
+  created_at: string;
+  updated_at: string;
   source: string;
   [key: string]: any;
 }
@@ -34,7 +35,7 @@ export async function checkDatabaseConnection(): Promise<boolean> {
   
   try {
     const { data, error } = await supabase
-      .from('orders')
+      .from('kds_orders')
       .select('count')
       .limit(1);
       
@@ -65,7 +66,7 @@ export async function saveOrder(orderData: InMemoryOrder): Promise<{ success: bo
     
     if (isConnected) {
       const { data, error } = await supabase
-        .from('orders')
+        .from('kds_orders')
         .insert([orderData])
         .select()
         .single();
@@ -98,10 +99,10 @@ export async function getOrders(restaurantId: string, filters?: any): Promise<{ 
     
     if (isConnected) {
       let query = supabase
-        .from('orders')
+        .from('kds_orders')
         .select('*')
         .eq('restaurant_id', restaurantId)
-        .order('created_time', { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(20);
         
       if (filters?.status) {
@@ -122,7 +123,7 @@ export async function getOrders(restaurantId: string, filters?: any): Promise<{ 
     const memoryOrders = Array.from(inMemoryOrders.values())
       .filter(order => order.restaurant_id === restaurantId)
       .filter(order => !filters?.status || order.status === filters.status)
-      .sort((a, b) => new Date(b.created_time).getTime() - new Date(a.created_time).getTime())
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, 20);
       
     console.log(`🧠 Retrieved ${memoryOrders.length} orders from memory`);
@@ -271,10 +272,10 @@ export async function updateOrderStatus(orderId: string, status: string, restaur
     
     if (isConnected) {
       const { data, error } = await supabase
-        .from('orders')
+        .from('kds_orders')
         .update({ 
           status, 
-          updated_time: new Date().toISOString() 
+          updated_at: new Date().toISOString() 
         })
         .eq('id', orderId)
         .eq('restaurant_id', restaurantId)
@@ -293,7 +294,7 @@ export async function updateOrderStatus(orderId: string, status: string, restaur
     const memoryOrder = inMemoryOrders.get(orderId);
     if (memoryOrder) {
       memoryOrder.status = status;
-      memoryOrder.updated_time = new Date().toISOString();
+      memoryOrder.updated_at = new Date().toISOString();
       console.log(`🧠 Order ${orderId} status updated to ${status} in memory`);
       return { success: true, data: memoryOrder };
     }
