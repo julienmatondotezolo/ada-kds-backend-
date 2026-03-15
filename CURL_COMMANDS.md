@@ -1,5 +1,69 @@
 # AdaKDS API - Curl Commands for Order Management
 
+## 🎯 NEW: AdaMenuBuilder Integration (Port 5009)
+
+### ✨ Submit Order from AdaMenuBuilder QR Code
+```bash
+curl -X POST http://localhost:5009/api/v1/restaurants/demo-restaurant/orders/ada-menu \
+  -H "Content-Type: application/json" \
+  -d '{
+    "menu_id": "menu_ada_losteria_2024",
+    "source": "ada-menu-builder",
+    "referrer": "https://ada-menu-builder.vercel.app/qr/menu_ada_losteria_2024",
+    "customer_name": "Table 12",
+    "customer_type": "dine_in",
+    "table_number": "12",
+    "order_items": [
+      {
+        "menu_item_id": "item_pizza_margherita",
+        "name": "Pizza Margherita",
+        "quantity": 2,
+        "special_requests": "Extra basil, light cheese",
+        "price": 14.50
+      },
+      {
+        "menu_item_id": "item_wine_chianti",
+        "name": "Chianti Classico",
+        "quantity": 1,
+        "price": 8.00
+      }
+    ],
+    "special_instructions": "Customer prefers thin crust"
+  }'
+```
+
+### 🔍 Validate Order (Dry Run Test)
+```bash
+curl -X POST http://localhost:5009/api/v1/restaurants/demo-restaurant/orders/ada-menu/validate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "menu_id": "menu_ada_losteria_2024",
+    "source": "ada-menu-builder",
+    "order_items": [
+      {"menu_item_id": "item_pizza_margherita", "name": "Pizza Margherita", "quantity": 2, "price": 14.50}
+    ]
+  }'
+```
+
+### 🚫 Test Security (Should Fail)
+```bash
+curl -X POST http://localhost:5009/api/v1/restaurants/demo-restaurant/orders/ada-menu \
+  -H "Content-Type: application/json" \
+  -d '{
+    "source": "invalid-website",
+    "referrer": "https://malicious-site.com",
+    "customer_name": "Hacker",
+    "order_items": [{"name": "Pizza", "quantity": 1, "price": 1.00}]
+  }'
+```
+
+### 🏥 Health Check (New Integration Status)
+```bash
+curl -X GET http://localhost:5009/health | jq
+```
+
+---
+
 ## 🍳 Order Sources & Testing Commands
 
 ### 📞 Phone Assistant Orders

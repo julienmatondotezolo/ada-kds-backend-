@@ -1,7 +1,8 @@
 import { Router, Request, Response } from "express";
 import { adminLimiter } from "../middleware/rate-limit";
 import { requireAuth, requireRestaurantAccess } from "../middleware/auth";
-import { supabase, transformToKdsOrder, mapOrderStatus, KdsOrder } from "../lib/supabase";
+import { transformToKdsOrder, mapOrderStatus, KdsOrder } from "../lib/supabase";
+import { getOrders, updateOrderStatus } from "../lib/database";
 
 const router = Router({ mergeParams: true });
 
@@ -33,26 +34,19 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
     
     console.log(`Fetching orders for restaurant: ${restaurantId}, status filter: ${status}`);
 
-    // Fetch real orders from Supabase
-    let query = supabase
-      .from('orders')
-      .select('*')
-      .order('created_time', { ascending: false })
-      .limit(20);
-
-    // Filter by status if provided
+    // Fetch orders using database layer (with fallback)
+    const filters: any = {};
     if (status) {
-      const dbStatus = status === 'new' ? 'CREATED' : 
-                     status === 'preparing' ? 'PREPARING' :
-                     status === 'ready' ? 'READY' :
-                     status === 'completed' ? 'COMPLETED' : status;
-      query = query.eq('status', dbStatus);
+      filters.status = status === 'new' ? 'CREATED' : 
+                      status === 'preparing' ? 'PREPARING' :
+                      status === 'ready' ? 'READY' :
+                      status === 'completed' ? 'COMPLETED' : status;
     }
 
-    const { data: orders, error } = await query;
+    const result = await getOrders(restaurantId, filters);
 
-    if (error) {
-      console.error('Supabase error:', error);
+    if (!result.success) {
+      console.error('Database error:', result.error);
       console.log('Falling back to mock data for demo purposes...');
       
       // Mock data for demo
@@ -131,6 +125,7 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    const orders = result.data;
     if (!orders || orders.length === 0) {
       console.log('No orders found, returning empty array');
       res.json([]);
