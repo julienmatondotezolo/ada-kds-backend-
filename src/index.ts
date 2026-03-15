@@ -5,6 +5,7 @@ import { Server as SocketIOServer } from "socket.io";
 import dotenv from "dotenv";
 import ordersRoutes from "./routes/orders";
 import stationsRoutes from "./routes/stations";
+import stationsManagementRoutes from "./routes/stations-management";
 import displayRoutes from "./routes/display";
 import incomingOrdersRoutes from "./routes/incoming-orders";
 import adaMenuOrdersRoutes from "./routes/ada-menu-orders";
@@ -103,6 +104,9 @@ app.use("/api/v1/restaurants/:restaurantId/orders", incomingOrdersRoutes);
 app.use("/api/v1/restaurants/:restaurantId/orders", adaMenuOrdersRoutes);
 app.use("/api/v1/restaurants/:restaurantId/stations", stationsRoutes);
 app.use("/api/v1/restaurants/:restaurantId/display", displayRoutes);
+
+// ─── Stations Management Routes ────────────────────────────────────────────
+app.use("/api/v1", stationsManagementRoutes);
 
 // ─── Socket.IO Connection Handling ────────────────────────────────────────
 io.on('connection', (socket) => {
