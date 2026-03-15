@@ -8,8 +8,15 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl || !supabaseServiceRoleKey) {
+  console.error('❌ Missing Supabase environment variables:');
+  console.error('SUPABASE_URL:', !!supabaseUrl ? 'SET' : 'MISSING');
+  console.error('SUPABASE_SERVICE_ROLE_KEY:', !!supabaseServiceRoleKey ? 'SET (length: ' + supabaseServiceRoleKey?.length + ')' : 'MISSING');
   throw new Error('Missing required Supabase environment variables. Please check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in your .env file.');
 }
+
+console.log('🔑 Supabase client initialized with:');
+console.log('URL:', supabaseUrl);
+console.log('Key:', supabaseServiceRoleKey?.slice(0, 20) + '...');
 
 export const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
   auth: {
