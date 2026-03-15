@@ -52,82 +52,21 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
     }
 
     if (!result.success) {
-      console.error('Database error:', result.error);
-      console.log('Falling back to mock data for demo purposes...');
+      console.error('❌ Database error:', result.error);
       
-      // Mock data for demo
-      const mockOrders: KdsOrder[] = [
-        {
-          id: "kds-001",
-          order_number: "KDS001",
-          restaurant_id: restaurantId,
-          status: "new",
-          station: "hot_kitchen",
-          priority: "normal",
-          items: [
-            { name: "Margherita Pizza", quantity: 1, estimated_time: 12 },
-            { name: "Caesar Salad", quantity: 1, estimated_time: 5 }
-          ],
-          customer_name: "Table 5",
-          order_time: new Date(Date.now() - 5 * 60000).toISOString(), // 5 minutes ago
-          estimated_ready_time: new Date(Date.now() + 12 * 60000).toISOString(),
-          elapsed_time: 300, // 5 minutes
-          total_prep_time: 17
-        },
-        {
-          id: "kds-002", 
-          order_number: "KDS002",
-          restaurant_id: restaurantId,
-          status: "preparing",
-          station: "grill",
-          priority: "high",
-          items: [
-            { name: "Grilled Salmon", quantity: 1, estimated_time: 15, special_requests: "No sauce" },
-            { name: "Roasted Vegetables", quantity: 1, estimated_time: 8 }
-          ],
-          customer_name: "Table 12",
-          order_time: new Date(Date.now() - 8 * 60000).toISOString(), // 8 minutes ago
-          estimated_ready_time: new Date(Date.now() + 15 * 60000).toISOString(),
-          elapsed_time: 480, // 8 minutes
-          total_prep_time: 23
-        },
-        {
-          id: "kds-003",
-          order_number: "KDS003", 
-          restaurant_id: restaurantId,
-          status: "new",
-          station: "cold_prep",
-          priority: "normal",
-          items: [
-            { name: "Greek Salad", quantity: 2, estimated_time: 4 },
-            { name: "Bruschetta", quantity: 1, estimated_time: 3 }
-          ],
-          customer_name: "Table 3",
-          order_time: new Date(Date.now() - 2 * 60000).toISOString(), // 2 minutes ago
-          estimated_ready_time: new Date(Date.now() + 7 * 60000).toISOString(),
-          elapsed_time: 120, // 2 minutes
-          total_prep_time: 11
-        },
-        {
-          id: "kds-004",
-          order_number: "KDS004",
-          restaurant_id: restaurantId,
-          status: "ready",
-          station: "bar",
-          priority: "normal",
-          items: [
-            { name: "Aperol Spritz", quantity: 2, estimated_time: 2 },
-            { name: "Negroni", quantity: 1, estimated_time: 3 }
-          ],
-          customer_name: "Table 8",
-          order_time: new Date(Date.now() - 5 * 60000).toISOString(), // 5 minutes ago
-          estimated_ready_time: new Date(Date.now() - 1 * 60000).toISOString(),
-          elapsed_time: 300, // 5 minutes
-          total_prep_time: 7
-        }
-      ];
-
-      res.json(mockOrders);
+      // Return appropriate error instead of mock data
+      if (result.error && result.error.message && result.error.message.includes('Connection')) {
+        res.status(503).json({ 
+          error: "DATABASE_UNAVAILABLE", 
+          message: "Database connection not available. Please check database configuration and VPS connectivity." 
+        });
+        return;
+      }
+      
+      res.status(500).json({ 
+        error: "DATABASE_ERROR", 
+        message: "Failed to retrieve orders from database. Please try again or contact support." 
+      });
       return;
     }
 
@@ -173,6 +112,16 @@ router.put("/:orderId/status", async (req: Request, res: Response): Promise<void
       return;
     }
 
+    // Update status in database
+    const updateResult = await updateOrderStatus(orderId, status, restaurantId);
+    
+    if (!updateResult.success) {
+      console.error(`Failed to update order ${orderId} status:`, updateResult.error);
+      // Continue with Socket.IO even if DB update fails (for demo purposes)
+    } else {
+      console.log(`✅ Order ${orderId} status updated to ${status} in database`);
+    }
+
     const updatedOrder = {
       id: orderId,
       restaurant_id: restaurantId,
@@ -190,7 +139,7 @@ router.put("/:orderId/status", async (req: Request, res: Response): Promise<void
       updated_at: new Date().toISOString()
     });
 
-    console.log(`Order ${orderId} status updated to ${status}`);
+    console.log(`🔔 Order ${orderId} status updated to ${status} broadcasted via Socket.IO`);
     
     res.json({
       success: true,
@@ -263,35 +212,19 @@ router.get("/analytics", async (req: Request, res: Response): Promise<void> => {
   try {
     const { restaurantId } = req.params;
     
-    const mockAnalytics = {
+    // TODO: Implement real analytics based on actual order data from database
+    // For now, return placeholder indicating functionality is not yet implemented
+    res.json({
       restaurant_id: restaurantId,
-      current_orders: 8,
-      average_prep_time: 14.5, // minutes
-      orders_completed_today: 127,
-      orders_pending: 3,
-      orders_in_progress: 5,
-      station_performance: [
-        {
-          station: "hot_kitchen",
-          orders_completed: 85,
-          average_time: 16.2,
-          efficiency: 92
-        },
-        {
-          station: "cold_prep", 
-          orders_completed: 42,
-          average_time: 7.8,
-          efficiency: 98
-        }
-      ],
-      peak_hours: [
-        { hour: "12:00", orders: 24 },
-        { hour: "13:00", orders: 31 },
-        { hour: "19:00", orders: 28 }
-      ]
-    };
-
-    res.json(mockAnalytics);
+      message: "Analytics feature is not yet implemented. Please check back later.",
+      current_orders: 0,
+      average_prep_time: 0,
+      orders_completed_today: 0,
+      orders_pending: 0,
+      orders_in_progress: 0,
+      station_performance: [],
+      peak_hours: []
+    });
   } catch (error) {
     console.error("Error fetching analytics:", error);
     res.status(500).json({ error: "SERVER_ERROR", message: "Failed to fetch analytics" });

@@ -1,5 +1,7 @@
 import { Router, Request, Response } from "express";
 import { publicLimiter } from "../middleware/rate-limit";
+import { saveOrder } from "../lib/database";
+import { v4 as uuidv4 } from 'uuid';
 
 const router = Router({ mergeParams: true });
 
@@ -200,8 +202,9 @@ router.post("/incoming", async (req: Request, res: Response): Promise<void> => {
       : new Date(orderTime.getTime() + (totalPrepTime * 60 * 1000));
 
     // Create order object
+    const orderId = uuidv4();
     const newOrder = {
-      id: `order-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: orderId,
       order_number,
       restaurant_id: restaurantId,
       status: "new",
@@ -222,8 +225,20 @@ router.post("/incoming", async (req: Request, res: Response): Promise<void> => {
       updated_at: orderTime.toISOString()
     };
 
-    // In a real implementation, save to database here
+    // Save to database
     console.log(`📥 New order received from ${source}: ${order_number} for ${customer_name}`);
+    
+    const saveResult = await saveOrder(newOrder);
+    if (!saveResult.success) {
+      console.error('❌ Failed to save order to database:', saveResult.error);
+      res.status(500).json({
+        error: "DATABASE_ERROR",
+        message: "Failed to save order to database. Order could not be processed."
+      });
+      return;
+    }
+    
+    console.log(`✅ Order ${order_number} saved to database successfully`);
 
     // Real-time broadcast to KDS displays
     const io = req.app.get('io');
@@ -292,8 +307,9 @@ router.post("/bulk", async (req: Request, res: Response): Promise<void> => {
         }
 
         // Create processed order
+        const orderId = uuidv4();
         const processedOrder = {
-          id: `bulk-${Date.now()}-${i}`,
+          id: orderId,
           order_number: order.order_number,
           restaurant_id: restaurantId,
           status: "new",
@@ -303,8 +319,21 @@ router.post("/bulk", async (req: Request, res: Response): Promise<void> => {
           customer_name: order.customer_name,
           customer_type: order.customer_type || "dine_in",
           source: source,
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          order_time: new Date().toISOString()
         };
+
+        // Save to database
+        const saveResult = await saveOrder(processedOrder);
+        if (!saveResult.success) {
+          errors.push({
+            index: i,
+            order_number: order.order_number || `ORDER_${i}`,
+            error: "Database save failed: " + (saveResult.error?.message || "Unknown error")
+          });
+          continue;
+        }
 
         processedOrders.push(processedOrder);
 

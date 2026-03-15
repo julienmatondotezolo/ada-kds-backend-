@@ -6,6 +6,10 @@ export const publicLimiter = rateLimit({
   max: 100,
   standardHeaders: true,
   legacyHeaders: false,
+  // Skip X-Forwarded-For validation for nginx proxy
+  validate: {
+    xForwardedForHeader: false
+  },
   message: {
     error: "RATE_LIMITED",
     message: "Too many requests. Please try again later.",
@@ -18,6 +22,10 @@ export const adminLimiter = rateLimit({
   max: 200,
   standardHeaders: true,
   legacyHeaders: false,
+  // Skip X-Forwarded-For validation for nginx proxy
+  validate: {
+    xForwardedForHeader: false
+  },
   message: {
     error: "RATE_LIMITED",
     message: "Too many requests. Please try again later.",

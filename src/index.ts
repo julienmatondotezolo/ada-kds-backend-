@@ -25,6 +25,10 @@ import { setupSwagger } from "./config/swagger";
 import { initializeDatabase, getDatabaseStatus } from "./lib/database";
 
 const app = express();
+
+// ─── Trust proxy for nginx reverse proxy (MUST BE FIRST) ───────────────────
+app.set('trust proxy', true);
+
 const server = createServer(app);
 const PORT = 5005; // AdaKDS fixed port in 5000-5999 range
 const startTime = Date.now();
@@ -84,9 +88,33 @@ setupSwagger(app);
  *     responses:
  *       200:
  *         description: Service is healthy
+ *       503:
+ *         description: Database unavailable
  */
 app.get("/health", (_req, res) => {
   const dbStatus = getDatabaseStatus();
+  
+  if (!dbStatus.connected) {
+    res.status(503).json({
+      status: "error",
+      service: "adakds-api",
+      version: "1.0.0",
+      uptime: Math.floor((Date.now() - startTime) / 1000),
+      timestamp: new Date().toISOString(),
+      database: {
+        connected: false,
+        last_checked: new Date(dbStatus.lastChecked).toISOString(),
+        error: "Database connection required but not available"
+      },
+      features: {
+        ada_menu_integration: false,
+        order_validation: false,
+        real_time_updates: false
+      }
+    });
+    return;
+  }
+
   res.json({
     status: "ok",
     service: "adakds-api",
@@ -94,17 +122,13 @@ app.get("/health", (_req, res) => {
     uptime: Math.floor((Date.now() - startTime) / 1000),
     timestamp: new Date().toISOString(),
     database: {
-      connected: dbStatus.connected,
-      last_checked: new Date(dbStatus.lastChecked).toISOString(),
-      fallback_mode: !dbStatus.connected,
-      in_memory_orders: dbStatus.inMemoryOrders,
-      in_memory_menus: dbStatus.inMemoryMenus
+      connected: true,
+      last_checked: new Date(dbStatus.lastChecked).toISOString()
     },
     features: {
       ada_menu_integration: true,
       order_validation: true,
-      real_time_updates: true,
-      mock_data_fallback: !dbStatus.connected
+      real_time_updates: true
     }
   });
 });
@@ -158,13 +182,19 @@ server.listen(PORT, async () => {
   console.log(`   📚 Docs:   http://localhost:${PORT}/api-docs`);
   console.log(`   🔌 Socket.IO enabled for real-time updates`);
   
-  // Initialize database connection
-  await initializeDatabase();
-  
-  console.log(`\n🔗 AdaMenuBuilder Integration:`);
-  console.log(`   Order endpoint: POST ${PORT}/api/v1/restaurants/:id/orders/ada-menu`);
-  console.log(`   Validation:     POST ${PORT}/api/v1/restaurants/:id/orders/ada-menu/validate`);
-  console.log(`   Allowed sources: ada-menu-builder.vercel.app, localhost:5173`);
+  // Initialize database connection (required for operation)
+  try {
+    await initializeDatabase();
+    console.log(`\n🔗 AdaMenuBuilder Integration:`);
+    console.log(`   Order endpoint: POST ${PORT}/api/v1/restaurants/:id/orders/ada-menu`);
+    console.log(`   Validation:     POST ${PORT}/api/v1/restaurants/:id/orders/ada-menu/validate`);
+    console.log(`   Allowed sources: ada-menu-builder.vercel.app, localhost:5173`);
+  } catch (error) {
+    console.error('\n❌ CRITICAL ERROR: Database initialization failed');
+    console.error('   Service will not function properly without database connectivity');
+    console.error('   Health endpoint will return 503 until database is available');
+    // Don't exit process - let health endpoint show the error status
+  }
 });
 
 export default app;

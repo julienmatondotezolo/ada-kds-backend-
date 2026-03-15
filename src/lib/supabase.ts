@@ -76,35 +76,52 @@ export function transformToKdsOrder(order: any): KdsOrder {
     elapsedSeconds = Math.floor((now.getTime() - orderTime.getTime()) / 1000);
   }
   
-  // Assign station based on simple logic
-  const assignStation = (): 'hot_kitchen' | 'cold_prep' | 'grill' | 'bar' => {
-    // This is a simple assignment - in a real system you'd have menu item categorization
-    const random = Math.random();
-    if (random < 0.4) return 'hot_kitchen';
-    if (random < 0.6) return 'cold_prep';
-    if (random < 0.8) return 'grill';
-    return 'bar';
+  // Assign station based on menu item categories
+  const assignStation = (items: any[]): 'hot_kitchen' | 'cold_prep' | 'grill' | 'bar' => {
+    // Default to hot kitchen if no items or no category information
+    if (!items || items.length === 0) return 'hot_kitchen';
+    
+    // Use the first item's category to determine station
+    const firstItem = items[0];
+    const category = firstItem.category?.toLowerCase();
+    
+    if (category) {
+      switch (category) {
+        case 'salad':
+        case 'cold_appetizers':
+        case 'dessert':
+        case 'desserts':
+          return 'cold_prep';
+        case 'grilled_meat':
+        case 'grilled_fish': 
+        case 'grilled_vegetables':
+        case 'grill':
+          return 'grill';
+        case 'drinks':
+        case 'cocktails':
+        case 'wine':
+        case 'coffee':
+          return 'bar';
+        default:
+          return 'hot_kitchen';
+      }
+    }
+    
+    // Fallback to hot kitchen
+    return 'hot_kitchen';
   };
 
-  // Parse meals string to create items array
+  // Parse meals string to create items array (for legacy compatibility only)
   const parseItems = (meals: string): KdsOrderItem[] => {
     const mealCount = parseInt(meals) || 1;
-    // Generate mock items based on meal count
-    const sampleItems = [
-      { name: 'Margherita Pizza', estimated_time: 12 },
-      { name: 'Caesar Salad', estimated_time: 5 },
-      { name: 'Spaghetti Carbonara', estimated_time: 8 },
-      { name: 'Grilled Salmon', estimated_time: 15 },
-      { name: 'Tiramisu', estimated_time: 3 },
-    ];
     
+    // Create simple items without mock data
     const items: KdsOrderItem[] = [];
     for (let i = 0; i < mealCount; i++) {
-      const item = sampleItems[i % sampleItems.length];
       items.push({
-        name: item.name,
+        name: `Item ${i + 1}`,
         quantity: 1,
-        estimated_time: item.estimated_time
+        estimated_time: 10 // Default time
       });
     }
     return items;
@@ -129,10 +146,10 @@ export function transformToKdsOrder(order: any): KdsOrder {
 
   return {
     id: order.id,
-    order_number: order.order_number || `KDS${order.id.slice(-3).toUpperCase()}`,
-    restaurant_id: order.restaurant_id || 'demo-restaurant',
+    order_number: order.order_number || `ORD${order.id.slice(-3).toUpperCase()}`,
+    restaurant_id: order.restaurant_id || 'losteria', // Use actual restaurant instead of demo
     status: mapOrderStatus(order.status),
-    station: assignStation(),
+    station: assignStation(items),
     priority: elapsedSeconds > 1200 ? 'high' : 'normal', // High priority if over 20 minutes
     items,
     customer_name: order.customer_name || order.table || "Unknown Customer",
@@ -163,58 +180,11 @@ export function mapOrderStatus(status: string): 'new' | 'preparing' | 'ready' | 
   }
 }
 
-// Default stations configuration
-export const defaultStations: KdsStation[] = [
-  {
-    id: 'station-1',
-    restaurant_id: 'demo-restaurant',
-    name: 'Hot Kitchen',
-    code: 'hot_kitchen',
-    description: 'Main cooking station for hot dishes',
-    color: '#FF6B6B',
-    display_order: 1,
-    active: true,
-    estimated_capacity: 8,
-    current_load: 0,
-    categories: ['pizza', 'pasta', 'meat', 'hot_appetizers']
-  },
-  {
-    id: 'station-2',
-    restaurant_id: 'demo-restaurant',
-    name: 'Cold Prep',
-    code: 'cold_prep',
-    description: 'Cold dishes and salad preparation',
-    color: '#4ECDC4',
-    display_order: 2,
-    active: true,
-    estimated_capacity: 6,
-    current_load: 0,
-    categories: ['salad', 'cold_appetizers', 'desserts']
-  },
-  {
-    id: 'station-3',
-    restaurant_id: 'demo-restaurant',
-    name: 'Grill',
-    code: 'grill',
-    description: 'Grilled meats and vegetables',
-    color: '#FFD93D',
-    display_order: 3,
-    active: true,
-    estimated_capacity: 4,
-    current_load: 0,
-    categories: ['grilled_meat', 'grilled_fish', 'grilled_vegetables']
-  },
-  {
-    id: 'station-4',
-    restaurant_id: 'demo-restaurant',
-    name: 'Bar',
-    code: 'bar',
-    description: 'Drinks and beverages',
-    color: '#6BCF7F',
-    display_order: 4,
-    active: true,
-    estimated_capacity: 10,
-    current_load: 0,
-    categories: ['drinks', 'cocktails', 'wine']
-  }
-];
+// NOTE: Stations should be managed through the database, not hardcoded
+// This export is kept for reference only - do not use for production data
+export const stationCategories = {
+  hot_kitchen: ['pizza', 'pasta', 'meat', 'hot_appetizers', 'main_course'],
+  cold_prep: ['salad', 'cold_appetizers', 'desserts', 'cold_dishes'],
+  grill: ['grilled_meat', 'grilled_fish', 'grilled_vegetables', 'bbq'],
+  bar: ['drinks', 'cocktails', 'wine', 'coffee', 'beverages']
+};

@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import { adminLimiter } from "../middleware/rate-limit";
 import { requireAuth, requireRestaurantAccess } from "../middleware/auth";
-import { defaultStations, KdsStation } from "../lib/supabase";
+import { KdsStation, stationCategories } from "../lib/supabase";
 
 const router = Router({ mergeParams: true });
 
@@ -23,11 +23,62 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
     
     console.log(`Fetching stations for restaurant: ${restaurantId}`);
 
-    // Use default stations configuration
-    const stations = defaultStations.map(station => ({
-      ...station,
-      restaurant_id: restaurantId
-    }));
+    // TODO: Implement database query for stations
+    // For now, return basic stations based on standard categories
+    const stations: KdsStation[] = [
+      {
+        id: 'hot_kitchen',
+        restaurant_id: restaurantId,
+        name: 'Hot Kitchen',
+        code: 'hot_kitchen',
+        description: 'Main cooking station for hot dishes',
+        color: '#FF6B6B',
+        display_order: 1,
+        active: true,
+        estimated_capacity: 8,
+        current_load: 0,
+        categories: stationCategories.hot_kitchen
+      },
+      {
+        id: 'cold_prep',
+        restaurant_id: restaurantId,
+        name: 'Cold Prep',
+        code: 'cold_prep',
+        description: 'Cold dishes and salad preparation',
+        color: '#4ECDC4',
+        display_order: 2,
+        active: true,
+        estimated_capacity: 6,
+        current_load: 0,
+        categories: stationCategories.cold_prep
+      },
+      {
+        id: 'grill',
+        restaurant_id: restaurantId,
+        name: 'Grill',
+        code: 'grill',
+        description: 'Grilled meats and vegetables',
+        color: '#FFD93D',
+        display_order: 3,
+        active: true,
+        estimated_capacity: 4,
+        current_load: 0,
+        categories: stationCategories.grill
+      },
+      {
+        id: 'bar',
+        restaurant_id: restaurantId,
+        name: 'Bar',
+        code: 'bar',
+        description: 'Drinks and beverages',
+        color: '#6BCF7F',
+        display_order: 4,
+        active: true,
+        estimated_capacity: 10,
+        current_load: 0,
+        categories: stationCategories.bar
+      }
+    ];
 
     res.json(stations);
   } catch (error) {

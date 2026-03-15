@@ -215,31 +215,22 @@ router.post("/ada-menu",
         ? new Date(requested_time)
         : new Date(orderTime.getTime() + (totalPrepTime * 60 * 1000));
 
-      // Create database order record
+      // Create minimal database order record (only essential fields)
       const orderData = {
         id: orderId,
         order_number: orderNumber,
-        restaurant_id: restaurantId,
-        published_menu_id: menu_id,
-        status: 'CREATED',
+        restaurant_id: restaurantId, // Keep as string for now  
+        status: 'new', // Use KDS status format
         customer_name,
-        customer_type,
-        customer_phone: customer_phone || '',
-        customer_email: customer_email || '',
-        table_number: table_number || '',
-        source: source || 'ada-menu-builder',
-        payment_method: payment_method || '',
-        special_instructions: special_instructions || '',
-        total_price: totalPrice,
-        estimated_prep_time: totalPrepTime,
+        order_time: orderTime.toISOString(),
         created_at: orderTime.toISOString(),
         updated_at: orderTime.toISOString(),
-        estimated_ready_time: readyTime.toISOString(),
+        source: source || 'ada-menu-builder',
+        // Store items as array
         items: orderItems.map((item: any) => ({
           name: item.name,
           quantity: item.quantity,
           special_requests: item.special_requests || "",
-          price: item.price || 0,
           estimated_time: item.estimated_prep_time || 10
         }))
       };
