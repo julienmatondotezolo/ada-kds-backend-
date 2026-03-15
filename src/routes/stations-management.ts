@@ -34,6 +34,10 @@ const router = express.Router();
 router.get('/stations', async (req, res) => {
   try {
     console.log('🔍 Stations endpoint called with query:', req.query);
+    console.log('🔑 Current env vars:', {
+      SUPABASE_URL: !!process.env.SUPABASE_URL,
+      SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY ? `${process.env.SUPABASE_SERVICE_ROLE_KEY.slice(0, 20)}...` : 'MISSING'
+    });
     
     const restaurantId = req.query.restaurant_id as string || 'c1cbea71-ece5-4d63-bb12-fe06b03d1140';
     console.log('🏪 Using restaurant ID:', restaurantId);

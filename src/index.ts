@@ -2,6 +2,13 @@ import dotenv from "dotenv";
 // ⚡ Load environment variables FIRST before any other imports
 dotenv.config();
 
+// 🔍 Debug environment variables immediately after loading
+console.log('🔍 Environment Variables Loaded:');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('PORT:', process.env.PORT);
+console.log('SUPABASE_URL:', process.env.SUPABASE_URL ? 'SET' : 'MISSING');
+console.log('SUPABASE_SERVICE_ROLE_KEY:', process.env.SUPABASE_SERVICE_ROLE_KEY ? `SET (${process.env.SUPABASE_SERVICE_ROLE_KEY.slice(0, 20)}...)` : 'MISSING');
+
 import express from "express";
 import cors from "cors";
 import { createServer } from "http";
