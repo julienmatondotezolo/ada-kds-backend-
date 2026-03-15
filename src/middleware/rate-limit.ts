@@ -1,23 +1,25 @@
 import rateLimit from "express-rate-limit";
 
+/** Public endpoints: 100 req/min per IP */
 export const publicLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // limit each IP to 1000 requests per windowMs
-  message: {
-    error: "RATE_LIMIT_EXCEEDED",
-    message: "Too many requests from this IP, please try again later.",
-  },
+  windowMs: 60 * 1000,
+  max: 100,
   standardHeaders: true,
   legacyHeaders: false,
+  message: {
+    error: "RATE_LIMITED",
+    message: "Too many requests. Please try again later.",
+  },
 });
 
+/** Admin endpoints: 200 req/min per IP */
 export const adminLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 500, // limit each IP to 500 requests per windowMs
-  message: {
-    error: "RATE_LIMIT_EXCEEDED", 
-    message: "Too many admin requests from this IP, please try again later.",
-  },
+  windowMs: 60 * 1000,
+  max: 200,
   standardHeaders: true,
   legacyHeaders: false,
+  message: {
+    error: "RATE_LIMITED",
+    message: "Too many requests. Please try again later.",
+  },
 });

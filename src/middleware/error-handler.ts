@@ -1,21 +1,27 @@
 import { Request, Response, NextFunction } from "express";
 
+export interface AppError extends Error {
+  statusCode?: number;
+  isOperational?: boolean;
+}
+
 export const errorHandler = (
-  err: any,
+  err: AppError,
   req: Request,
   res: Response,
   next: NextFunction
 ): void => {
-  console.error("Error:", err);
-
-  const statusCode = err.statusCode || err.status || 500;
-  const message = err.message || "Internal Server Error";
+  const statusCode = err.statusCode || 500;
+  
+  console.error(`[ERROR ${statusCode}] ${req.method} ${req.path}:`, err.message);
+  
+  if (process.env.NODE_ENV === "development") {
+    console.error(err.stack);
+  }
 
   res.status(statusCode).json({
-    error: err.code || "SERVER_ERROR",
-    message,
-    ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
-    timestamp: new Date().toISOString(),
-    path: req.path
+    error: err.name || "SERVER_ERROR",
+    message: err.message || "An unexpected error occurred",
+    ...(process.env.NODE_ENV === "development" && { stack: err.stack })
   });
 };

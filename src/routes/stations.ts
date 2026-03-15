@@ -5,7 +5,7 @@ import { requireAuth, requireRestaurantAccess } from "../middleware/auth";
 const router = Router({ mergeParams: true });
 
 router.use(adminLimiter);
-// TODO: Uncomment when AdaAuth is fully integrated
+// TODO: Uncomment when AdaAuth is working
 // router.use(requireAuth);
 // router.use(requireRestaurantAccess);
 
@@ -22,7 +22,7 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
     
     const mockStations = [
       {
-        id: "station-hot",
+        id: "station-1",
         restaurant_id: restaurantId,
         name: "Hot Kitchen",
         code: "hot_kitchen",
@@ -30,14 +30,12 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
         color: "#FF6B6B",
         display_order: 1,
         active: true,
-        estimated_capacity: 8,
+        estimated_capacity: 8, // max concurrent orders
         current_load: 5,
-        categories: ["pizza", "pasta", "meat", "hot_appetizers"],
-        created_at: "2026-02-22T10:00:00Z",
-        updated_at: "2026-03-15T10:00:00Z"
+        categories: ["pizza", "pasta", "meat", "hot_appetizers"]
       },
       {
-        id: "station-cold", 
+        id: "station-2", 
         restaurant_id: restaurantId,
         name: "Cold Prep",
         code: "cold_prep",
@@ -47,14 +45,12 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
         active: true,
         estimated_capacity: 6,
         current_load: 2,
-        categories: ["salad", "cold_appetizers", "desserts"],
-        created_at: "2026-02-22T10:00:00Z",
-        updated_at: "2026-03-15T10:00:00Z"
+        categories: ["salad", "cold_appetizers", "desserts"]
       },
       {
-        id: "station-grill",
+        id: "station-3",
         restaurant_id: restaurantId,
-        name: "Grill Station",
+        name: "Grill",
         code: "grill",
         description: "Grilled meats and vegetables",
         color: "#FFD93D",
@@ -62,12 +58,10 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
         active: true,
         estimated_capacity: 4,
         current_load: 3,
-        categories: ["grilled_meat", "grilled_fish", "grilled_vegetables"],
-        created_at: "2026-02-22T10:00:00Z",
-        updated_at: "2026-03-15T10:00:00Z"
+        categories: ["grilled_meat", "grilled_fish", "grilled_vegetables"]
       },
       {
-        id: "station-bar",
+        id: "station-4",
         restaurant_id: restaurantId,
         name: "Bar",
         code: "bar",
@@ -76,25 +70,15 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
         display_order: 4,
         active: true,
         estimated_capacity: 10,
-        current_load: 3,
-        categories: ["drinks", "cocktails", "wine", "coffee"],
-        created_at: "2026-02-22T10:00:00Z",
-        updated_at: "2026-03-15T10:00:00Z"
+        current_load: 1,
+        categories: ["drinks", "cocktails", "wine"]
       }
     ];
 
-    res.json({
-      success: true,
-      stations: mockStations,
-      total: mockStations.length,
-      restaurant_id: restaurantId
-    });
+    res.json(mockStations);
   } catch (error) {
     console.error("Error fetching stations:", error);
-    res.status(500).json({ 
-      error: "SERVER_ERROR", 
-      message: "Failed to fetch stations" 
-    });
+    res.status(500).json({ error: "SERVER_ERROR", message: "Failed to fetch stations" });
   }
 });
 
@@ -113,7 +97,7 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
     if (!name || !code) {
       res.status(400).json({
         error: "MISSING_FIELDS",
-        message: "Name and code are required fields"
+        message: "Name and code are required"
       });
       return;
     }
@@ -130,29 +114,15 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
       categories: categories || [],
       active: true,
       display_order: 99,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      created_at: new Date().toISOString()
     };
 
-    // Real-time update via Socket.IO
-    const io = req.app.get('io');
-    io.to(`restaurant-${restaurantId}`).emit('station_created', {
-      station: newStation,
-      restaurant_id: restaurantId
-    });
-
-    console.log(`🏢 New station created: ${newStation.name} (${newStation.code})`);
+    console.log("New station created:", newStation);
     
-    res.status(201).json({
-      success: true,
-      station: newStation
-    });
+    res.status(201).json(newStation);
   } catch (error) {
     console.error("Error creating station:", error);
-    res.status(500).json({ 
-      error: "SERVER_ERROR", 
-      message: "Failed to create station" 
-    });
+    res.status(500).json({ error: "SERVER_ERROR", message: "Failed to create station" });
   }
 });
 
@@ -168,32 +138,18 @@ router.put("/:stationId", async (req: Request, res: Response): Promise<void> => 
     const { restaurantId, stationId } = req.params;
     const updates = req.body;
 
-    const updatedStation = {
-      id: stationId,
-      restaurant_id: restaurantId,
-      ...updates,
-      updated_at: new Date().toISOString()
-    };
-
-    // Real-time update via Socket.IO
-    const io = req.app.get('io');
-    io.to(`restaurant-${restaurantId}`).emit('station_updated', {
-      station: updatedStation,
-      restaurant_id: restaurantId
-    });
-
-    console.log(`🔄 Station ${stationId} updated:`, updates);
+    console.log(`Station ${stationId} updated:`, updates);
 
     res.json({
       success: true,
-      station: updatedStation
+      station_id: stationId,
+      restaurant_id: restaurantId,
+      updates,
+      updated_at: new Date().toISOString()
     });
   } catch (error) {
     console.error("Error updating station:", error);
-    res.status(500).json({ 
-      error: "SERVER_ERROR", 
-      message: "Failed to update station" 
-    });
+    res.status(500).json({ error: "SERVER_ERROR", message: "Failed to update station" });
   }
 });
 
@@ -207,115 +163,35 @@ router.put("/:stationId", async (req: Request, res: Response): Promise<void> => 
 router.get("/:stationId/orders", async (req: Request, res: Response): Promise<void> => {
   try {
     const { restaurantId, stationId } = req.params;
-    const { status } = req.query;
     
-    // Mock orders for this specific station
+    // Mock orders for this station
     const stationOrders = [
       {
         id: "order-1",
         order_number: "KDS001",
         station_id: stationId,
-        restaurant_id: restaurantId,
         status: "preparing",
-        priority: "normal",
         items: [
           {
-            name: "Pizza Margherita",
+            name: "Margherita Pizza",
             quantity: 2,
-            prep_time: 12,
-            special_requests: "Extra basil"
+            prep_time: 12
           }
         ],
         customer: "Table 5",
-        customer_type: "dine_in",
-        elapsed_time: 720,
-        order_time: "2026-03-15T11:30:00Z",
-        created_at: "2026-03-15T11:30:00Z"
-      },
-      {
-        id: "order-2",
-        order_number: "KDS004",
-        station_id: stationId,
-        restaurant_id: restaurantId,
-        status: "new",
-        priority: "high",
-        items: [
-          {
-            name: "Risotto ai Funghi",
-            quantity: 1,
-            prep_time: 18,
-            special_requests: "No parsley"
-          }
-        ],
-        customer: "Table 3",
-        customer_type: "dine_in",
-        elapsed_time: 120,
-        order_time: "2026-03-15T11:52:00Z",
-        created_at: "2026-03-15T11:52:00Z"
+        elapsed_time: 720
       }
     ];
 
-    // Filter by status if provided
-    const filteredOrders = status 
-      ? stationOrders.filter(order => order.status === status)
-      : stationOrders;
-
     res.json({
-      success: true,
       station_id: stationId,
       restaurant_id: restaurantId,
-      orders: filteredOrders,
-      total_orders: filteredOrders.length,
-      filters: { status }
+      orders: stationOrders,
+      total_orders: stationOrders.length
     });
   } catch (error) {
     console.error("Error fetching station orders:", error);
-    res.status(500).json({ 
-      error: "SERVER_ERROR", 
-      message: "Failed to fetch station orders" 
-    });
-  }
-});
-
-/**
- * @swagger
- * /api/v1/restaurants/{restaurantId}/stations/{stationId}/capacity:
- *   put:
- *     summary: Update station capacity and load
- *     tags: [Kitchen Stations]
- */
-router.put("/:stationId/capacity", async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { restaurantId, stationId } = req.params;
-    const { estimated_capacity, current_load } = req.body;
-
-    const capacityUpdate = {
-      station_id: stationId,
-      restaurant_id: restaurantId,
-      estimated_capacity,
-      current_load,
-      capacity_percentage: current_load && estimated_capacity 
-        ? Math.round((current_load / estimated_capacity) * 100) 
-        : 0,
-      updated_at: new Date().toISOString()
-    };
-
-    // Real-time update via Socket.IO
-    const io = req.app.get('io');
-    io.to(`restaurant-${restaurantId}`).emit('station_capacity_updated', capacityUpdate);
-
-    console.log(`📊 Station ${stationId} capacity updated: ${current_load}/${estimated_capacity}`);
-
-    res.json({
-      success: true,
-      capacity: capacityUpdate
-    });
-  } catch (error) {
-    console.error("Error updating station capacity:", error);
-    res.status(500).json({ 
-      error: "SERVER_ERROR", 
-      message: "Failed to update station capacity" 
-    });
+    res.status(500).json({ error: "SERVER_ERROR", message: "Failed to fetch station orders" });
   }
 });
 
