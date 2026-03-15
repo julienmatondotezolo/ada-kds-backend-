@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { adminLimiter } from "../middleware/rate-limit";
 import { requireAuth, requireRestaurantAccess } from "../middleware/auth";
+import { defaultStations, KdsStation } from "../lib/supabase";
 
 const router = Router({ mergeParams: true });
 
@@ -20,62 +21,15 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
   try {
     const { restaurantId } = req.params;
     
-    const mockStations = [
-      {
-        id: "station-1",
-        restaurant_id: restaurantId,
-        name: "Hot Kitchen",
-        code: "hot_kitchen",
-        description: "Main cooking station for hot dishes",
-        color: "#FF6B6B",
-        display_order: 1,
-        active: true,
-        estimated_capacity: 8, // max concurrent orders
-        current_load: 5,
-        categories: ["pizza", "pasta", "meat", "hot_appetizers"]
-      },
-      {
-        id: "station-2", 
-        restaurant_id: restaurantId,
-        name: "Cold Prep",
-        code: "cold_prep",
-        description: "Cold dishes and salad preparation",
-        color: "#4ECDC4",
-        display_order: 2,
-        active: true,
-        estimated_capacity: 6,
-        current_load: 2,
-        categories: ["salad", "cold_appetizers", "desserts"]
-      },
-      {
-        id: "station-3",
-        restaurant_id: restaurantId,
-        name: "Grill",
-        code: "grill",
-        description: "Grilled meats and vegetables",
-        color: "#FFD93D",
-        display_order: 3,
-        active: true,
-        estimated_capacity: 4,
-        current_load: 3,
-        categories: ["grilled_meat", "grilled_fish", "grilled_vegetables"]
-      },
-      {
-        id: "station-4",
-        restaurant_id: restaurantId,
-        name: "Bar",
-        code: "bar",
-        description: "Drinks and beverages",
-        color: "#6BCF7F",
-        display_order: 4,
-        active: true,
-        estimated_capacity: 10,
-        current_load: 1,
-        categories: ["drinks", "cocktails", "wine"]
-      }
-    ];
+    console.log(`Fetching stations for restaurant: ${restaurantId}`);
 
-    res.json(mockStations);
+    // Use default stations configuration
+    const stations = defaultStations.map(station => ({
+      ...station,
+      restaurant_id: restaurantId
+    }));
+
+    res.json(stations);
   } catch (error) {
     console.error("Error fetching stations:", error);
     res.status(500).json({ error: "SERVER_ERROR", message: "Failed to fetch stations" });

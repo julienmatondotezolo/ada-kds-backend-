@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { adminLimiter } from "../middleware/rate-limit";
 import { requireAuth, requireRestaurantAccess } from "../middleware/auth";
+import { supabase, transformToKdsOrder, mapOrderStatus, KdsOrder } from "../lib/supabase";
 
 const router = Router({ mergeParams: true });
 
@@ -30,85 +31,45 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
     const { restaurantId } = req.params;
     const { status } = req.query;
     
-    // Mock kitchen orders data
-    const mockOrders = [
-      {
-        id: "order-1",
-        order_number: "KDS001",
-        restaurant_id: restaurantId,
-        status: "preparing",
-        station: "hot_kitchen",
-        priority: "normal",
-        items: [
-          {
-            name: "Margherita Pizza",
-            quantity: 2,
-            special_requests: "Extra basil, no oregano",
-            estimated_time: 12
-          },
-          {
-            name: "Spaghetti Carbonara", 
-            quantity: 1,
-            special_requests: "Extra parmesan",
-            estimated_time: 8
-          }
-        ],
-        customer_name: "Table 5",
-        order_time: "2026-02-22T11:30:00Z",
-        estimated_ready_time: "2026-02-22T11:42:00Z",
-        elapsed_time: 720, // seconds
-        total_prep_time: 12 // minutes
-      },
-      {
-        id: "order-2",
-        order_number: "KDS002",
-        restaurant_id: restaurantId,
-        status: "ready",
-        station: "cold_prep",
-        priority: "high",
-        items: [
-          {
-            name: "Caesar Salad",
-            quantity: 1,
-            special_requests: "Dressing on the side",
-            estimated_time: 5
-          }
-        ],
-        customer_name: "Table 12",
-        order_time: "2026-02-22T11:35:00Z",
-        estimated_ready_time: "2026-02-22T11:40:00Z",
-        elapsed_time: 300,
-        total_prep_time: 5
-      },
-      {
-        id: "order-3",
-        order_number: "KDS003",
-        restaurant_id: restaurantId,
-        status: "new",
-        station: "hot_kitchen",
-        priority: "normal",
-        items: [
-          {
-            name: "Osso Buco",
-            quantity: 1,
-            special_requests: "Medium rare",
-            estimated_time: 25
-          }
-        ],
-        customer_name: "Table 8",
-        order_time: "2026-02-22T11:40:00Z",
-        estimated_ready_time: "2026-02-22T12:05:00Z",
-        elapsed_time: 60,
-        total_prep_time: 25
-      }
-    ];
+    console.log(`Fetching orders for restaurant: ${restaurantId}, status filter: ${status}`);
+
+    // Fetch real orders from Supabase
+    let query = supabase
+      .from('orders')
+      .select('*')
+      .order('created_time', { ascending: false })
+      .limit(20);
 
     // Filter by status if provided
-    const filteredOrders = status 
-      ? mockOrders.filter(order => order.status === status)
-      : mockOrders;
+    if (status) {
+      const dbStatus = status === 'new' ? 'CREATED' : 
+                     status === 'preparing' ? 'PREPARING' :
+                     status === 'ready' ? 'READY' :
+                     status === 'completed' ? 'COMPLETED' : status;
+      query = query.eq('status', dbStatus);
+    }
 
-    res.json(filteredOrders);
+    const { data: orders, error } = await query;
+
+    if (error) {
+      console.error('Supabase error:', error);
+      throw error;
+    }
+
+    if (!orders || orders.length === 0) {
+      console.log('No orders found, returning empty array');
+      res.json([]);
+      return;
+    }
+
+    // Transform orders to KDS format
+    const kdsOrders: KdsOrder[] = orders
+      .map(transformToKdsOrder)
+      .filter(order => order.status !== 'completed'); // Hide completed orders from KDS
+
+    console.log(`Transformed ${kdsOrders.length} orders for KDS display`);
+
+    res.json(kdsOrders);
   } catch (error) {
     console.error("Error fetching orders:", error);
     res.status(500).json({ error: "SERVER_ERROR", message: "Failed to fetch orders" });
