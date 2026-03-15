@@ -36,7 +36,7 @@ export async function checkDatabaseConnection(): Promise<boolean> {
   try {
     const { data, error } = await supabase
       .from('kds_orders')
-      .select('count')
+      .select('id')
       .limit(1);
       
     isSupabaseConnected = !error;
