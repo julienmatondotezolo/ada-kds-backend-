@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { requireAuth, requireAdminOrOwner, requireAdmin, auditLogger, hasPermission, AuthUser, demoAuth } from "../middleware/enhanced-auth";
+import { requireAuth, requireAdminOrOwner, requireAdmin, auditLogger, hasPermission, AuthUser, demoAuth, stationPermissions } from "../middleware/enhanced-auth";
 import { supabase } from "../lib/supabase";
 import { getSocketManager } from "../lib/socket-manager";
 import { adminLimiter } from "../middleware/rate-limit";
@@ -77,7 +77,7 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
     console.log(`Fetching stations for restaurant: ${restaurantId}, user: ${user?.email}, role: ${user?.role}`);
 
     // Verify restaurant access
-    if (user.restaurant_id !== restaurantId) {
+    if (!user.restaurantIds.includes(restaurantId)) {
       res.status(403).json({
         error: "RESTAURANT_ACCESS_DENIED",
         message: "Access denied to this restaurant"
@@ -115,10 +115,10 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
       total: data?.length || 0,
       user_role: user.role,
       permissions: {
-        can_create: hasPermission.canCreateStation(user),
-        can_edit: hasPermission.canEditStation(user),
-        can_delete: hasPermission.canDeleteStation(user),
-        can_soft_delete: hasPermission.canSoftDeleteStation(user)
+        can_create: stationPermissions.canCreateStation(user),
+        can_edit: stationPermissions.canEditStation(user),
+        can_delete: stationPermissions.canDeleteStation(user),
+        can_soft_delete: stationPermissions.canSoftDeleteStation(user)
       }
     });
   } catch (error) {
@@ -148,7 +148,7 @@ router.post("/", requireAdminOrOwner, async (req: Request, res: Response): Promi
       res.status(400).json({
         error: "VALIDATION_ERROR",
         message: "Invalid input data",
-        details: validationResult.error.errors
+        details: validationResult.error.issues
       });
       return;
     }
@@ -266,7 +266,7 @@ router.put("/:stationId", requireAdminOrOwner, async (req: Request, res: Respons
       res.status(400).json({
         error: "VALIDATION_ERROR",
         message: "Invalid input data",
-        details: validationResult.error.errors
+        details: validationResult.error.issues
       });
       return;
     }

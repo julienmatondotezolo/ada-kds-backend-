@@ -10,6 +10,8 @@ interface User {
   name?: string;
 }
 
+export type AuthUser = User;
+
 // Extend Express Request type to include user
 declare global {
   namespace Express {
@@ -260,4 +262,101 @@ export const authMiddleware = (allowedRoles: string[]) => {
       next();
     }
   ];
+};
+
+// ─── Enhanced Auth Middleware ──────────────────────────────────────────────
+/**
+ * Require admin or owner role
+ */
+export const requireAdminOrOwner = authMiddleware(['admin', 'owner']);
+
+/**
+ * Demo authentication for development
+ */
+export const demoAuth = (req: Request, res: Response, next: NextFunction): void => {
+  // Mock user for development
+  req.user = {
+    id: '550e8400-e29b-41d4-a716-446655440000',
+    email: 'admin@losteria.com',
+    role: 'admin',
+    restaurantIds: ['c1cbea71-ece5-4d63-bb12-fe06b03d1140'],
+    permissions: ['*'],
+    name: 'Demo Admin'
+  };
+  next();
+};
+
+/**
+ * Simple audit logger
+ */
+export const auditLogger = (action: string) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const user = req.user;
+    const timestamp = new Date().toISOString();
+    console.log(`[AUDIT] ${timestamp} - User ${user?.email || 'unknown'} attempted ${action}`);
+    next();
+  };
+};
+
+/**
+ * Check if user has specific permission
+ */
+export const hasPermission = (permission: string) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const user = req.user;
+
+    if (!user) {
+      res.status(401).json({
+        error: 'Authentication required',
+        message: 'User not authenticated'
+      });
+      return;
+    }
+
+    // Super admin has all permissions
+    if (user.role === 'super_admin') {
+      next();
+      return;
+    }
+
+    // Check if user has wildcard permission or specific permission
+    if (user.permissions.includes('*') || user.permissions.includes(permission)) {
+      next();
+      return;
+    }
+
+    res.status(403).json({
+      error: 'Insufficient permissions',
+      message: `Required permission: ${permission}`
+    });
+  };
+};
+
+/**
+ * Permission checker for stations
+ */
+export const stationPermissions = {
+  canCreateStation: (user: AuthUser): boolean => {
+    if (!user) return false;
+    if (user.role === 'super_admin' || user.role === 'admin') return true;
+    return user.permissions.includes('*') || user.permissions.includes('station:create');
+  },
+  
+  canEditStation: (user: AuthUser): boolean => {
+    if (!user) return false;
+    if (user.role === 'super_admin' || user.role === 'admin' || user.role === 'owner') return true;
+    return user.permissions.includes('*') || user.permissions.includes('station:edit');
+  },
+  
+  canDeleteStation: (user: AuthUser): boolean => {
+    if (!user) return false;
+    if (user.role === 'super_admin' || user.role === 'admin') return true;
+    return user.permissions.includes('*') || user.permissions.includes('station:delete');
+  },
+  
+  canSoftDeleteStation: (user: AuthUser): boolean => {
+    if (!user) return false;
+    if (user.role === 'super_admin' || user.role === 'admin' || user.role === 'owner') return true;
+    return user.permissions.includes('*') || user.permissions.includes('station:soft_delete');
+  }
 };
