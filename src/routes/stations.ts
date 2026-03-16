@@ -23,64 +23,11 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
     
     console.log(`Fetching stations for restaurant: ${restaurantId}`);
 
-    // TODO: Implement database query for stations
-    // For now, return basic stations based on standard categories
-    const stations: KdsStation[] = [
-      {
-        id: 'hot_kitchen',
-        restaurant_id: restaurantId,
-        name: 'Hot Kitchen',
-        code: 'hot_kitchen',
-        description: 'Main cooking station for hot dishes',
-        color: '#FF6B6B',
-        display_order: 1,
-        active: true,
-        estimated_capacity: 8,
-        current_load: 0,
-        categories: stationCategories.hot_kitchen
-      },
-      {
-        id: 'cold_prep',
-        restaurant_id: restaurantId,
-        name: 'Cold Prep',
-        code: 'cold_prep',
-        description: 'Cold dishes and salad preparation',
-        color: '#4ECDC4',
-        display_order: 2,
-        active: true,
-        estimated_capacity: 6,
-        current_load: 0,
-        categories: stationCategories.cold_prep
-      },
-      {
-        id: 'grill',
-        restaurant_id: restaurantId,
-        name: 'Grill',
-        code: 'grill',
-        description: 'Grilled meats and vegetables',
-        color: '#FFD93D',
-        display_order: 3,
-        active: true,
-        estimated_capacity: 4,
-        current_load: 0,
-        categories: stationCategories.grill
-      },
-      {
-        id: 'bar',
-        restaurant_id: restaurantId,
-        name: 'Bar',
-        code: 'bar',
-        description: 'Drinks and beverages',
-        color: '#6BCF7F',
-        display_order: 4,
-        active: true,
-        estimated_capacity: 10,
-        current_load: 0,
-        categories: stationCategories.bar
-      }
-    ];
-
-    res.json(stations);
+    // FAIL-HARD: No hardcoded stations - requires database implementation
+    res.status(503).json({
+      error: "DATABASE_REQUIRED",
+      message: "Stations require database implementation. No hardcoded fallback data provided."
+    });
   } catch (error) {
     console.error("Error fetching stations:", error);
     res.status(500).json({ error: "SERVER_ERROR", message: "Failed to fetch stations" });
@@ -107,24 +54,11 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const newStation = {
-      id: `station-${Date.now()}`,
-      restaurant_id: restaurantId,
-      name,
-      code,
-      description: description || "",
-      color: color || "#6B7280",
-      estimated_capacity: estimated_capacity || 5,
-      current_load: 0,
-      categories: categories || [],
-      active: true,
-      display_order: 99,
-      created_at: new Date().toISOString()
-    };
-
-    console.log("New station created:", newStation);
-    
-    res.status(201).json(newStation);
+    // FAIL-HARD: No console-only station creation - requires database persistence
+    res.status(503).json({
+      error: "DATABASE_REQUIRED",
+      message: "Station creation requires database persistence. Console-only creation not allowed."
+    });
   } catch (error) {
     console.error("Error creating station:", error);
     res.status(500).json({ error: "SERVER_ERROR", message: "Failed to create station" });
@@ -143,14 +77,10 @@ router.put("/:stationId", async (req: Request, res: Response): Promise<void> => 
     const { restaurantId, stationId } = req.params;
     const updates = req.body;
 
-    console.log(`Station ${stationId} updated:`, updates);
-
-    res.json({
-      success: true,
-      station_id: stationId,
-      restaurant_id: restaurantId,
-      updates,
-      updated_at: new Date().toISOString()
+    // FAIL-HARD: No console-only updates - requires database persistence
+    res.status(503).json({
+      error: "DATABASE_REQUIRED",
+      message: "Station updates require database persistence. Console-only updates not allowed."
     });
   } catch (error) {
     console.error("Error updating station:", error);
@@ -169,30 +99,10 @@ router.get("/:stationId/orders", async (req: Request, res: Response): Promise<vo
   try {
     const { restaurantId, stationId } = req.params;
     
-    // Mock orders for this station
-    const stationOrders = [
-      {
-        id: "order-1",
-        order_number: "KDS001",
-        station_id: stationId,
-        status: "preparing",
-        items: [
-          {
-            name: "Margherita Pizza",
-            quantity: 2,
-            prep_time: 12
-          }
-        ],
-        customer: "Table 5",
-        elapsed_time: 720
-      }
-    ];
-
-    res.json({
-      station_id: stationId,
-      restaurant_id: restaurantId,
-      orders: stationOrders,
-      total_orders: stationOrders.length
+    // FAIL-HARD: No mock station orders - requires database queries
+    res.status(503).json({
+      error: "DATABASE_REQUIRED",
+      message: "Station orders require database queries. No mock data provided."
     });
   } catch (error) {
     console.error("Error fetching station orders:", error);

@@ -54,18 +54,10 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
     if (!result.success) {
       console.error('❌ Database error:', result.error);
       
-      // Return appropriate error instead of mock data
-      if (result.error && result.error.message && result.error.message.includes('Connection')) {
-        res.status(503).json({ 
-          error: "DATABASE_UNAVAILABLE", 
-          message: "Database connection not available. Please check database configuration and VPS connectivity." 
-        });
-        return;
-      }
-      
-      res.status(500).json({ 
-        error: "DATABASE_ERROR", 
-        message: "Failed to retrieve orders from database. Please try again or contact support." 
+      // FAIL-HARD: Return 503 error when database is unavailable (no fallbacks)
+      res.status(503).json({ 
+        error: "DATABASE_UNAVAILABLE", 
+        message: "Database connection failed. Service unavailable without database access." 
       });
       return;
     }
@@ -112,15 +104,19 @@ router.put("/:orderId/status", async (req: Request, res: Response): Promise<void
       return;
     }
 
-    // Update status in database
+    // Update status in database - FAIL-HARD approach
     const updateResult = await updateOrderStatus(orderId, status, restaurantId);
     
     if (!updateResult.success) {
-      console.error(`Failed to update order ${orderId} status:`, updateResult.error);
-      // Continue with Socket.IO even if DB update fails (for demo purposes)
-    } else {
-      console.log(`✅ Order ${orderId} status updated to ${status} in database`);
+      console.error(`❌ Failed to update order ${orderId} status:`, updateResult.error);
+      res.status(503).json({ 
+        error: "DATABASE_UNAVAILABLE", 
+        message: "Cannot update order status without database access." 
+      });
+      return;
     }
+    
+    console.log(`✅ Order ${orderId} status updated to ${status} in database`);
 
     const updatedOrder = {
       id: orderId,
@@ -169,7 +165,18 @@ router.post("/:orderId/bump", async (req: Request, res: Response): Promise<void>
       "ready": "completed"
     };
 
-    const currentStatus = "preparing"; // TODO: Get from database
+    // Get current status from database - NO HARDCODED VALUES
+    const orderResult = await getOrders(restaurantId, { orderId });
+    
+    if (!orderResult.success || !orderResult.data || orderResult.data.length === 0) {
+      res.status(503).json({
+        error: "DATABASE_UNAVAILABLE",
+        message: "Cannot bump order without database access to current status"
+      });
+      return;
+    }
+    
+    const currentStatus = orderResult.data[0].status;
     const nextStatus = statusProgression[currentStatus as keyof typeof statusProgression];
 
     if (!nextStatus) {
@@ -212,18 +219,10 @@ router.get("/analytics", async (req: Request, res: Response): Promise<void> => {
   try {
     const { restaurantId } = req.params;
     
-    // TODO: Implement real analytics based on actual order data from database
-    // For now, return placeholder indicating functionality is not yet implemented
-    res.json({
-      restaurant_id: restaurantId,
-      message: "Analytics feature is not yet implemented. Please check back later.",
-      current_orders: 0,
-      average_prep_time: 0,
-      orders_completed_today: 0,
-      orders_pending: 0,
-      orders_in_progress: 0,
-      station_performance: [],
-      peak_hours: []
+    // FAIL-HARD: Analytics requires real database operations only
+    res.status(503).json({
+      error: "SERVICE_UNAVAILABLE",
+      message: "Analytics feature requires database implementation. No mock data provided."
     });
   } catch (error) {
     console.error("Error fetching analytics:", error);

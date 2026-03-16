@@ -235,16 +235,19 @@ router.post("/ada-menu",
         }))
       };
 
-      // Save to database (with fallback)
+      // Save to database - FAIL-HARD approach (no fallbacks)
       const saveResult = await saveOrder(orderData);
-      let savedOrder = null;
       
-      if (saveResult.success) {
-        savedOrder = saveResult.data;
-        // TODO: Save order items separately when database is available
-      } else {
-        console.warn('Order save failed, but continuing with real-time broadcast:', saveResult.error);
+      if (!saveResult.success) {
+        console.error('❌ AdaMenu order save failed:', saveResult.error);
+        res.status(503).json({
+          error: "DATABASE_UNAVAILABLE",
+          message: "Cannot process AdaMenu order without database access."
+        });
+        return;
       }
+      
+      const savedOrder = saveResult.data;
 
       // Create KDS-compatible order format for real-time updates
       const kdsOrder = {

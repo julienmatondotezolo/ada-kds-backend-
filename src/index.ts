@@ -30,7 +30,7 @@ const app = express();
 app.set('trust proxy', true);
 
 const server = createServer(app);
-const PORT = 5005; // AdaKDS fixed port in 5000-5999 range
+const PORT = parseInt(process.env.PORT || '5009'); // AdaKDS configurable port
 const startTime = Date.now();
 
 // ─── CORS Configuration ──────────────────────────────────────────────────
