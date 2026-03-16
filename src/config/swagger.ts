@@ -5,201 +5,330 @@ import { Express } from "express";
 const swaggerDefinition = {
   openapi: "3.0.0",
   info: {
-    title: "AdaKDS API",
+    title: "AdaKDS - Kitchen Display System API",
     version: "1.0.0",
     description: `
-# AdaKDS - Kitchen Display System API
+# AdaKDS - Real-Time Kitchen Display System
 **Service Slug:** \`ada-kds\`
 
-Real-time kitchen display system microservice for Ada Systems. This API provides order management, station configuration, and real-time updates for kitchen workflows.
+**What this API does:** Real-time kitchen order management system that connects QR code ordering apps, POS systems, and phone assistants to kitchen displays. Orders flow automatically from customers to kitchen staff with live status updates.
 
-## 📱 QR Code Integration
+---
 
-For QR code apps and external ordering systems, use the incoming orders endpoint:
+## 🍕 How It Works
 
-\`\`\`http
-POST /api/v1/restaurants/{restaurantId}/orders/incoming
-Content-Type: application/json
+### 1. Order Submission (QR Code Apps, Phone Assistant, etc.)
+External systems submit orders → Orders appear instantly on kitchen displays → Kitchen updates status → Real-time notifications to customers
 
-{
-  "source": "qr_code",
-  "order_number": "QR001",
-  "customer_name": "Table 5",
-  "customer_type": "dine_in",
-  "items": [
-    {
-      "name": "Pizza Margherita",
-      "quantity": 1,
-      "special_requests": "Extra cheese",
-      "category": "pizza",
-      "estimated_time": 12
-    }
-  ],
-  "special_instructions": "Customer allergies: none"
-}
-\`\`\`
+### 2. Kitchen Workflow
+- **Orders appear automatically** on kitchen displays grouped by station
+- **Staff updates status** by tapping/clicking (pending → preparing → ready → completed)
+- **Real-time synchronization** across all displays and customer apps
 
-## 🔌 WebSocket Integration
+### 3. Customer Experience  
+- **Submit order** via QR code, website, or phone
+- **Track progress** with live status updates (preparing, ready, etc.)
+- **Get notified** when order is ready for pickup
 
-### Connecting to Real-Time Updates
+---
 
-AdaKDS uses Socket.IO for real-time order and station updates:
+## 📱 **QR Code & External Integration**
+
+### Submit New Orders (The Main Entry Point)
+
+**Endpoint:** \`POST /api/v1/restaurants/{restaurantId}/orders/incoming\`
+
+**What it does:** QR code apps, phone assistants, and POS systems use this to submit new orders directly to the kitchen.
 
 \`\`\`javascript
-// Connect to the KDS WebSocket
+// QR Code App Example
+const orderResponse = await fetch('https://api-kds.adasystems.app/api/v1/restaurants/restaurant-uuid/orders/incoming', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    source: "qr_code",           // or "phone_assistant", "website", "pos_system"
+    order_number: "QR-001",      // Your unique order ID
+    customer_name: "Table 5",    // Customer/table identifier
+    customer_type: "dine_in",    // "dine_in", "takeaway", "delivery"
+    priority: "normal",          // "low", "normal", "high", "urgent"
+    items: [
+      {
+        name: "Pizza Margherita",
+        quantity: 2,
+        special_requests: "Extra cheese, no oregano",
+        category: "pizza",       // Used for auto-station assignment
+        estimated_time: 15       // Minutes to prepare
+      },
+      {
+        name: "Coca Cola",
+        quantity: 2,
+        category: "drinks",
+        estimated_time: 1
+      }
+    ],
+    special_instructions: "Customer allergic to nuts"
+  })
+});
+
+// Response: Order created with auto-assigned station and UUID
+// Kitchen displays update automatically via WebSocket
+\`\`\`
+
+### What Happens Next
+1. **Order gets UUID** and is **auto-assigned to station** based on item categories
+2. **Kitchen displays update instantly** via WebSocket events
+3. **Order appears** in the appropriate station queue (grill, cold prep, bar, etc.)
+4. **Kitchen staff can track and update** status immediately
+
+---
+
+## ⚡ **Real-Time WebSocket Integration**
+
+### Connect to Live Updates
+
+**WebSocket URL:** \`wss://api-kds.adasystems.app\`
+
+\`\`\`javascript
+import io from 'socket.io-client';
+
+// Connect to KDS WebSocket
 const socket = io('https://api-kds.adasystems.app', {
   auth: {
-    token: 'your-jwt-token',
-    restaurantId: 'your-restaurant-id'
+    token: 'your-jwt-token',              // Get from AdaAuth
+    restaurantId: 'restaurant-uuid'       // Your restaurant ID
   }
 });
 
-// Listen for order status changes
-socket.on('order:updated', (order) => {
-  console.log('Order status changed:', order);
-  // Handle order update in your UI
+// Join restaurant room for updates
+socket.emit('join:restaurant', 'restaurant-uuid');
+\`\`\`
+
+### Listen for Order Events
+
+\`\`\`javascript
+// NEW ORDER RECEIVED (from QR codes, phone assistant, etc.)
+socket.on('new_order_received', (data) => {
+  const { order, source, timestamp } = data;
+  console.log(\`New \${source} order: \${order.order_number}\`);
+  
+  // Add to kitchen display immediately
+  addOrderToDisplay(order);
+  playNotificationSound();
 });
 
-// Listen for new orders
-socket.on('order:created', (order) => {
-  console.log('New order received:', order);
-  // Add order to display
+// ORDER STATUS CHANGED (kitchen updates)
+socket.on('order_status_updated', (data) => {
+  const { order_id, new_status, updated_at } = data;
+  console.log(\`Order \${order_id} → \${new_status}\`);
+  
+  // Update kitchen display
+  updateOrderDisplay(order_id, new_status);
+  
+  // Notify customer app if connected
+  if (isCustomerApp) {
+    notifyCustomer(new_status);
+  }
 });
 
-// Send order status update
-socket.emit('order:updateStatus', {
-  orderId: 'order-uuid',
-  status: 'preparing',
-  stationId: 'station-uuid'
+// ORDER BUMPED (quick status progression)
+socket.on('order_bumped', (data) => {
+  const { order_id, old_status, new_status, bump_time } = data;
+  updateOrderStatus(order_id, new_status);
 });
 \`\`\`
 
-### WebSocket Events
+### Send Status Updates (Kitchen Staff)
 
-**Listening Events:**
-- \`order:created\` - New order received
-- \`order:updated\` - Order status/details changed  
-- \`order:deleted\` - Order cancelled/removed
-- \`station:updated\` - Station configuration changed
-- \`connection:restaurant\` - Join restaurant room for updates
-
-**Emitting Events:**
-- \`order:updateStatus\` - Update order status
-- \`order:assignStation\` - Assign order to station
-- \`join:restaurant\` - Join restaurant updates room
-
-### Order Status Flow
-
+\`\`\`javascript
+// Update order status (triggers WebSocket broadcast)
+function updateOrderStatus(orderId, newStatus) {
+  // Method 1: Via WebSocket
+  socket.emit('order:updateStatus', {
+    orderId: orderId,
+    status: newStatus,
+    stationId: 'current-station-uuid'
+  });
+  
+  // Method 2: Via REST API (also triggers WebSocket)
+  fetch(\`/api/v1/restaurants/restaurant-uuid/orders/\${orderId}/status\`, {
+    method: 'PUT',
+    headers: { 
+      'Authorization': 'Bearer ' + token,
+      'Content-Type': 'application/json' 
+    },
+    body: JSON.stringify({ status: newStatus })
+  });
+}
 \`\`\`
-pending → preparing → ready → completed
-    ↓         ↓        ↓
+
+---
+
+## 📊 **Order Status Flow & Management**
+
+### Status Progression
+\`\`\`
+new → preparing → ready → completed
+ ↓       ↓         ↓
 cancelled  cancelled  cancelled
 \`\`\`
 
-## 🔊 Order Status Change Notifications
+### Get Active Orders (Kitchen Display)
+\`\`\`javascript
+// Fetch current orders for kitchen display
+const response = await fetch('/api/v1/restaurants/restaurant-uuid/orders', {
+  headers: { 'Authorization': 'Bearer ' + token }
+});
+const orders = await response.json();
 
-### REST API Status Updates
-
-Update order status via REST API:
-
-\`\`\`http
-PUT /api/v1/restaurants/{restaurantId}/orders/{orderId}/status
-Content-Type: application/json
-Authorization: Bearer <token>
-
-{
-  "status": "preparing",
-  "station_id": "station-uuid",
-  "estimated_completion": "2024-01-15T14:30:00Z"
-}
+// Response: Array of active orders (excludes completed)
+orders.forEach(order => {
+  console.log(\`\${order.order_number}: \${order.status} at \${order.station}\`);
+});
 \`\`\`
 
-### WebSocket Listeners
-
-All connected clients in the same restaurant receive real-time updates:
-
+### Update Order Status (Kitchen Staff)
 \`\`\`javascript
-// Kitchen Display - listens for all order changes
-socket.on('order:updated', (data) => {
-  const { order, previousStatus, updatedBy } = data;
-  updateOrderDisplay(order);
+// Update via REST API
+await fetch('/api/v1/restaurants/restaurant-uuid/orders/order-uuid/status', {
+  method: 'PUT',
+  headers: { 
+    'Authorization': 'Bearer ' + token,
+    'Content-Type': 'application/json' 
+  },
+  body: JSON.stringify({
+    status: "preparing",                    // Required
+    station_id: "station-uuid",            // Optional
+    estimated_completion: "2024-01-15T14:30:00Z",  // Optional
+    notes: "Started by Chef Mario"          // Optional
+  })
 });
 
-// QR Code App - listens for specific order
-socket.on('order:updated', (data) => {
-  if (data.order.id === myOrderId) {
-    notifyCustomer(data.order.status);
+// This triggers WebSocket 'order_status_updated' event to all connected clients
+\`\`\`
+
+### Bump Order (Quick Progression)
+\`\`\`javascript
+// Quick status progression (new → preparing → ready → completed)
+await fetch('/api/v1/restaurants/restaurant-uuid/orders/order-uuid/bump', {
+  method: 'POST',
+  headers: { 'Authorization': 'Bearer ' + token }
+});
+\`\`\`
+
+---
+
+## 🏪 **Kitchen Station Management**
+
+### Auto-Station Assignment
+Orders are **automatically assigned to stations** based on item categories:
+
+- **\`pizza\`, \`pasta\`, \`meat\`** → Hot Kitchen
+- **\`salad\`, \`cold_appetizers\`, \`dessert\`** → Cold Prep  
+- **\`grilled_meat\`, \`grilled_fish\`** → Grill Station
+- **\`drinks\`, \`cocktails\`, \`coffee\`** → Bar
+
+### Station Configuration (Admin Only)
+\`\`\`javascript
+// Get all stations
+const stations = await fetch('/api/v1/restaurants/restaurant-uuid/stations', {
+  headers: { 'Authorization': 'Bearer ' + adminToken }
+});
+
+// Create new station
+await fetch('/api/v1/restaurants/restaurant-uuid/stations', {
+  method: 'POST',
+  headers: { 
+    'Authorization': 'Bearer ' + adminToken,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    name: "Grill Station",
+    code: "GRILL", 
+    color: "#FF6B35",
+    categories: ["grilled_meat", "grilled_fish", "burgers"],
+    display_order: 1
+  })
+});
+\`\`\`
+
+---
+
+## 🔐 **Authentication & Permissions**
+
+### Get JWT Token
+1. **Authenticate with AdaAuth:** https://auth.adasystems.app
+2. **Include token in requests:** \`Authorization: Bearer <your-jwt-token>\`
+
+### Permission Levels
+- **\`staff\`**: View orders, update status
+- **\`admin\`**: + Manage stations, full order management
+- **\`owner\`**: + Restaurant configuration
+- **\`super_admin\`**: System-wide access
+
+\`\`\`javascript
+// All API requests need authentication
+const headers = {
+  'Authorization': 'Bearer ' + jwtToken,
+  'Content-Type': 'application/json'
+};
+\`\`\`
+
+---
+
+## 🎯 **Complete Integration Example**
+
+### QR Code App → Kitchen Display → Customer Notification
+
+\`\`\`javascript
+// 1. QR CODE APP: Submit order
+const order = await submitOrder({
+  source: "qr_code",
+  order_number: "QR-123",
+  customer_name: "Table 8",
+  items: [{ name: "Pizza Margherita", quantity: 1, category: "pizza" }]
+});
+
+// 2. KITCHEN DISPLAY: Auto-receives via WebSocket
+socket.on('new_order_received', (data) => {
+  displayOrder(data.order);  // Shows in Hot Kitchen station
+});
+
+// 3. KITCHEN STAFF: Updates status
+await updateOrderStatus(order.id, "preparing");
+
+// 4. CUSTOMER APP: Gets notification via WebSocket  
+socket.on('order_status_updated', (data) => {
+  if (data.order_id === order.id) {
+    showNotification("Your pizza is being prepared!");
   }
 });
 
-// Management Dashboard - listens for analytics
-socket.on('order:updated', (data) => {
-  updateOrderMetrics(data.order);
-  logStatusChange(data);
-});
-\`\`\`
+// 5. KITCHEN STAFF: Marks ready
+await updateOrderStatus(order.id, "ready");
 
-## Authentication
-
-This API uses JWT tokens from AdaAuth for authentication. Include your token in the Authorization header:
-
-\`\`\`
-Authorization: Bearer <your-jwt-token>
-\`\`\`
-
-### User Roles
-
-- **Staff**: Read-only access to orders and stations
-- **Admin**: Full access to stations management, order updates  
-- **Owner**: Full access + restaurant configuration
-- **Super Admin**: System-wide access
-
-### Getting Started
-
-1. Obtain a JWT token from [AdaAuth](https://auth.adasystems.app)
-2. Include the token in your API requests
-3. Use the restaurant ID from your authenticated context
-
-## Rate Limiting
-
-API requests are limited to prevent abuse. Limits vary by endpoint and user role.
-
-## Example Integration Flow
-
-### QR Code Order Submission
-
-1. **Customer scans QR code** → Opens ordering app
-2. **App submits order** → POST to \`/orders/incoming\`
-3. **KDS receives order** → WebSocket \`order:created\` event
-4. **Kitchen updates status** → PUT to \`/orders/{id}/status\`
-5. **Customer gets notification** → WebSocket \`order:updated\` event
-
-### Real-Time Status Tracking
-
-\`\`\`javascript
-// QR Code app tracking order progress
-socket.on('order:updated', (data) => {
-  const { order } = data;
-  
-  switch(order.status) {
-    case 'pending':
-      showMessage('Order received! Preparing to cook...');
-      break;
-    case 'preparing': 
-      showMessage(\`Now cooking! Estimated: \${order.estimated_completion}\`);
-      break;
-    case 'ready':
-      showNotification('Your order is ready for pickup!');
-      break;
-    case 'completed':
-      showMessage('Order completed. Thank you!');
-      break;
+// 6. CUSTOMER: Gets pickup notification
+socket.on('order_status_updated', (data) => {
+  if (data.new_status === "ready") {
+    showAlert("Your order is ready for pickup!");
   }
 });
 \`\`\`
+
+---
+
+## 📋 **Rate Limits & Production Notes**
+
+- **Public endpoints** (\`/incoming\`): Generous limits for customer orders
+- **Authenticated endpoints**: Standard rate limiting by role
+- **WebSocket connections**: Persistent, auto-reconnect recommended
+- **Database**: Fail-hard approach - no mock data, real operations only
+- **Multi-tenant**: Restaurant isolation via UUID in all requests
+
+**Production URL:** https://api-kds.adasystems.app  
+**Development URL:** http://localhost:5009
 `,
     contact: {
-      name: "Ada Systems Support",
+      name: "Ada Systems Support", 
       url: "https://ada.systems",
       email: "support@ada.systems"
     },
