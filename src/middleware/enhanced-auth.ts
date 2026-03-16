@@ -30,12 +30,14 @@ const ADAAUTH_API_URL = process.env.ADAAUTH_API_URL || 'https://auth.adasystems.
 
 async function validateTokenWithAdaAuth(token: string): Promise<User | null> {
   try {
-    // Use the user profile endpoint to validate OAuth token
-    const response = await fetch(`${ADAAUTH_API_URL}/api/v2/user/me`, {
-      method: 'GET',
+    // Use the validation endpoint as specified in the API docs
+    const response = await fetch(`${ADAAUTH_API_URL}/auth/validate`, {
+      method: 'POST',
       headers: {
+        'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
-      }
+      },
+      body: JSON.stringify({ access_token: token })
     });
 
     if (!response.ok) {
@@ -43,13 +45,15 @@ async function validateTokenWithAdaAuth(token: string): Promise<User | null> {
       return null;
     }
 
-    const userData: any = await response.json();
+    const data: any = await response.json();
     
-    if (!userData?.id || !userData?.email) {
-      console.warn('[AUTH] Invalid user data from AdaAuth');
+    if (!data?.valid || !data?.user) {
+      console.warn('[AUTH] Invalid token or user data from AdaAuth');
       return null;
     }
 
+    const userData = data.user;
+    
     return {
       id: userData.id,
       email: userData.email,
