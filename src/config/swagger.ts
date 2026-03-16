@@ -9,8 +9,135 @@ const swaggerDefinition = {
     version: "1.0.0",
     description: `
 # AdaKDS - Kitchen Display System API
+**Service Slug:** \`ada-kds\`
 
 Real-time kitchen display system microservice for Ada Systems. This API provides order management, station configuration, and real-time updates for kitchen workflows.
+
+## 📱 QR Code Integration
+
+For QR code apps and external ordering systems, use the incoming orders endpoint:
+
+\`\`\`http
+POST /api/v1/restaurants/{restaurantId}/orders/incoming
+Content-Type: application/json
+
+{
+  "source": "qr_code",
+  "order_number": "QR001",
+  "customer_name": "Table 5",
+  "customer_type": "dine_in",
+  "items": [
+    {
+      "name": "Pizza Margherita",
+      "quantity": 1,
+      "special_requests": "Extra cheese",
+      "category": "pizza",
+      "estimated_time": 12
+    }
+  ],
+  "special_instructions": "Customer allergies: none"
+}
+\`\`\`
+
+## 🔌 WebSocket Integration
+
+### Connecting to Real-Time Updates
+
+AdaKDS uses Socket.IO for real-time order and station updates:
+
+\`\`\`javascript
+// Connect to the KDS WebSocket
+const socket = io('https://api-kds.adasystems.app', {
+  auth: {
+    token: 'your-jwt-token',
+    restaurantId: 'your-restaurant-id'
+  }
+});
+
+// Listen for order status changes
+socket.on('order:updated', (order) => {
+  console.log('Order status changed:', order);
+  // Handle order update in your UI
+});
+
+// Listen for new orders
+socket.on('order:created', (order) => {
+  console.log('New order received:', order);
+  // Add order to display
+});
+
+// Send order status update
+socket.emit('order:updateStatus', {
+  orderId: 'order-uuid',
+  status: 'preparing',
+  stationId: 'station-uuid'
+});
+\`\`\`
+
+### WebSocket Events
+
+**Listening Events:**
+- \`order:created\` - New order received
+- \`order:updated\` - Order status/details changed  
+- \`order:deleted\` - Order cancelled/removed
+- \`station:updated\` - Station configuration changed
+- \`connection:restaurant\` - Join restaurant room for updates
+
+**Emitting Events:**
+- \`order:updateStatus\` - Update order status
+- \`order:assignStation\` - Assign order to station
+- \`join:restaurant\` - Join restaurant updates room
+
+### Order Status Flow
+
+\`\`\`
+pending → preparing → ready → completed
+    ↓         ↓        ↓
+cancelled  cancelled  cancelled
+\`\`\`
+
+## 🔊 Order Status Change Notifications
+
+### REST API Status Updates
+
+Update order status via REST API:
+
+\`\`\`http
+PUT /api/v1/restaurants/{restaurantId}/orders/{orderId}/status
+Content-Type: application/json
+Authorization: Bearer <token>
+
+{
+  "status": "preparing",
+  "station_id": "station-uuid",
+  "estimated_completion": "2024-01-15T14:30:00Z"
+}
+\`\`\`
+
+### WebSocket Listeners
+
+All connected clients in the same restaurant receive real-time updates:
+
+\`\`\`javascript
+// Kitchen Display - listens for all order changes
+socket.on('order:updated', (data) => {
+  const { order, previousStatus, updatedBy } = data;
+  updateOrderDisplay(order);
+});
+
+// QR Code App - listens for specific order
+socket.on('order:updated', (data) => {
+  if (data.order.id === myOrderId) {
+    notifyCustomer(data.order.status);
+  }
+});
+
+// Management Dashboard - listens for analytics
+socket.on('order:updated', (data) => {
+  updateOrderMetrics(data.order);
+  logStatusChange(data);
+});
+\`\`\`
 
 ## Authentication
 
@@ -37,9 +164,39 @@ Authorization: Bearer <your-jwt-token>
 
 API requests are limited to prevent abuse. Limits vary by endpoint and user role.
 
-## WebSocket Support
+## Example Integration Flow
 
-Real-time updates are available via Socket.IO on the same server URL.
+### QR Code Order Submission
+
+1. **Customer scans QR code** → Opens ordering app
+2. **App submits order** → POST to \`/orders/incoming\`
+3. **KDS receives order** → WebSocket \`order:created\` event
+4. **Kitchen updates status** → PUT to \`/orders/{id}/status\`
+5. **Customer gets notification** → WebSocket \`order:updated\` event
+
+### Real-Time Status Tracking
+
+\`\`\`javascript
+// QR Code app tracking order progress
+socket.on('order:updated', (data) => {
+  const { order } = data;
+  
+  switch(order.status) {
+    case 'pending':
+      showMessage('Order received! Preparing to cook...');
+      break;
+    case 'preparing': 
+      showMessage(\`Now cooking! Estimated: \${order.estimated_completion}\`);
+      break;
+    case 'ready':
+      showNotification('Your order is ready for pickup!');
+      break;
+    case 'completed':
+      showMessage('Order completed. Thank you!');
+      break;
+  }
+});
+\`\`\`
 `,
     contact: {
       name: "Ada Systems Support",

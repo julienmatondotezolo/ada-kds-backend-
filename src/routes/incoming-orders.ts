@@ -11,8 +11,22 @@ router.use(publicLimiter);
  * @swagger
  * /api/v1/restaurants/{restaurantId}/orders/incoming:
  *   post:
- *     summary: Receive new order from external sources (phone, website, QR code)
- *     tags: [Incoming Orders]
+ *     summary: Submit new order from QR code apps or external systems
+ *     description: |
+ *       **For QR Code Integration:** This is the primary endpoint for QR code ordering apps to submit orders directly to the kitchen.
+ *       
+ *       **WebSocket Events Triggered:**
+ *       - `order:created` - Sent to all connected kitchen displays
+ *       - `order:updated` - Sent when order is processed and assigned to stations
+ *       
+ *       **Order Flow:**
+ *       1. QR code app submits order to this endpoint
+ *       2. Order is validated and assigned a UUID
+ *       3. Order appears on kitchen displays automatically
+ *       4. Kitchen staff can track and update status via WebSocket or REST API
+ *       
+ *       **Rate Limiting:** Public endpoint with generous limits for customer orders.
+ *     tags: [Incoming Orders, QR Code Integration]
  *     parameters:
  *       - in: path
  *         name: restaurantId

@@ -87,8 +87,121 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
  * @swagger
  * /api/v1/restaurants/{restaurantId}/orders/{orderId}/status:
  *   put:
- *     summary: Update order status (new → preparing → ready → completed)
+ *     summary: Update order status and broadcast to WebSocket clients
+ *     description: |
+ *       Updates an order's status and automatically broadcasts the change to all connected WebSocket clients in the restaurant room.
+ *       
+ *       **Status Flow:**
+ *       - `pending` → `preparing` → `ready` → `completed`
+ *       - Any status can be changed to `cancelled`
+ *       
+ *       **WebSocket Event:** Triggers `order:updated` event to all connected clients in the restaurant room.
  *     tags: [Kitchen Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: restaurantId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Restaurant UUID
+ *       - in: path
+ *         name: orderId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Order UUID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [pending, preparing, ready, completed, cancelled]
+ *                 description: New order status
+ *               station_id:
+ *                 type: string
+ *                 format: uuid
+ *                 description: Station handling the order (optional)
+ *               estimated_completion:
+ *                 type: string
+ *                 format: date-time
+ *                 description: When the order is estimated to be ready
+ *               notes:
+ *                 type: string
+ *                 description: Additional notes about the status change
+ *           examples:
+ *             start_cooking:
+ *               summary: Start cooking order
+ *               value:
+ *                 status: "preparing"
+ *                 station_id: "550e8400-e29b-41d4-a716-446655440001"
+ *                 estimated_completion: "2024-01-15T14:30:00Z"
+ *                 notes: "Started by Chef Mario"
+ *             mark_ready:
+ *               summary: Mark order ready for pickup
+ *               value:
+ *                 status: "ready"
+ *                 notes: "Order ready at pickup counter"
+ *             complete_order:
+ *               summary: Complete order (customer picked up)
+ *               value:
+ *                 status: "completed"
+ *                 notes: "Picked up by customer"
+ *     responses:
+ *       200:
+ *         description: Order status updated successfully and broadcasted via WebSocket
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 order:
+ *                   $ref: '#/components/schemas/Order'
+ *                 websocket_event:
+ *                   type: object
+ *                   description: Event sent to WebSocket clients
+ *                   properties:
+ *                     event:
+ *                       type: string
+ *                       example: "order:updated"
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         order:
+ *                           $ref: '#/components/schemas/Order'
+ *                         previous_status:
+ *                           type: string
+ *                         updated_by:
+ *                           type: string
+ *       400:
+ *         description: Invalid status or request data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *             example:
+ *               error: "INVALID_STATUS"
+ *               message: "Status must be one of: pending, preparing, ready, completed, cancelled"
+ *       401:
+ *         description: Authentication required
+ *       403:
+ *         description: Insufficient permissions
+ *       404:
+ *         description: Order not found
+ *       503:
+ *         description: Database unavailable
  */
 router.put("/:orderId/status", async (req: Request, res: Response): Promise<void> => {
   try {
