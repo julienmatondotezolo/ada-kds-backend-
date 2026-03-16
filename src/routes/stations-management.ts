@@ -1,5 +1,6 @@
 import express from 'express';
 import { supabase } from '../lib/supabase';
+import { requireAuth, requireAdmin, optionalAuth } from '../middleware/auth';
 
 const router = express.Router();
 
@@ -9,6 +10,8 @@ const router = express.Router();
  *   get:
  *     tags: [Stations]
  *     summary: Get all stations for a restaurant
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: query
  *         name: restaurant_id
@@ -28,10 +31,14 @@ const router = express.Router();
  *                   type: array
  *                   items:
  *                     $ref: '#/components/schemas/Station'
+ *       401:
+ *         description: Authentication required
+ *       403:
+ *         description: Access denied
  *       500:
  *         description: Server error
  */
-router.get('/stations', async (req, res) => {
+router.get('/stations', optionalAuth, async (req, res) => {
   try {
     console.log('🔍 Stations endpoint called with query:', req.query);
     console.log('🔑 Current env vars:', {
@@ -69,7 +76,9 @@ router.get('/stations', async (req, res) => {
  * /api/v1/stations:
  *   post:
  *     tags: [Stations]
- *     summary: Create a new station
+ *     summary: Create a new station (Admin Only)
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -105,10 +114,14 @@ router.get('/stations', async (req, res) => {
  *         description: Station created successfully
  *       400:
  *         description: Validation error
+ *       401:
+ *         description: Authentication required
+ *       403:
+ *         description: Admin access required
  *       500:
  *         description: Server error
  */
-router.post('/stations', async (req, res) => {
+router.post('/stations', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { name, code, color, categories, active, restaurant_id } = req.body;
 
@@ -184,7 +197,9 @@ router.post('/stations', async (req, res) => {
  * /api/v1/stations/{id}:
  *   put:
  *     tags: [Stations]
- *     summary: Update a station
+ *     summary: Update a station (Admin Only)
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -214,12 +229,16 @@ router.post('/stations', async (req, res) => {
  *     responses:
  *       200:
  *         description: Station updated successfully
+ *       401:
+ *         description: Authentication required
+ *       403:
+ *         description: Admin access required
  *       404:
  *         description: Station not found
  *       500:
  *         description: Server error
  */
-router.put('/stations/:id', async (req, res) => {
+router.put('/stations/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { name, code, color, categories, active } = req.body;
@@ -287,7 +306,9 @@ router.put('/stations/:id', async (req, res) => {
  * /api/v1/stations/{id}:
  *   delete:
  *     tags: [Stations]
- *     summary: Delete a station
+ *     summary: Delete a station (Admin Only)
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -298,12 +319,16 @@ router.put('/stations/:id', async (req, res) => {
  *     responses:
  *       200:
  *         description: Station deleted successfully
+ *       401:
+ *         description: Authentication required
+ *       403:
+ *         description: Admin access required
  *       404:
  *         description: Station not found
  *       500:
  *         description: Server error
  */
-router.delete('/stations/:id', async (req, res) => {
+router.delete('/stations/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -341,7 +366,9 @@ router.delete('/stations/:id', async (req, res) => {
  * /api/v1/stations/{id}/move:
  *   post:
  *     tags: [Stations]
- *     summary: Move a station up or down in display order
+ *     summary: Move a station up or down in display order (Admin Only)
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -367,12 +394,16 @@ router.delete('/stations/:id', async (req, res) => {
  *         description: Station moved successfully
  *       400:
  *         description: Invalid direction or cannot move further
+ *       401:
+ *         description: Authentication required
+ *       403:
+ *         description: Admin access required
  *       404:
  *         description: Station not found
  *       500:
  *         description: Server error
  */
-router.post('/stations/:id/move', async (req, res) => {
+router.post('/stations/:id/move', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { direction } = req.body;
