@@ -104,30 +104,42 @@ export async function checkTableSchema(): Promise<{ success: boolean; columns?: 
 export async function saveOrder(orderData: KDSOrder): Promise<{ success: boolean; data?: any; error?: any }> {
   try {
     const isConnected = await checkDatabaseConnection();
-    
+
     if (!isConnected) {
       throw new Error('Database connection not available');
     }
-    
-    // First, check what columns exist
-    const schemaCheck = await checkTableSchema();
-    console.log('📋 Available table columns:', schemaCheck.columns || 'unknown');
-    
-    // Convert restaurant_id to UUID format for database
-    const dbOrderData = {
-      ...orderData,
-      restaurant_id: getRestaurantUUID(orderData.restaurant_id)
+
+    // Only insert columns that exist in the kds_orders table
+    const dbOrderData: Record<string, any> = {
+      id: orderData.id,
+      order_number: orderData.order_number,
+      restaurant_id: getRestaurantUUID(orderData.restaurant_id),
+      status: orderData.status || 'new',
+      priority: orderData.priority || 'normal',
+      customer_name: orderData.customer_name,
+      customer_type: orderData.customer_type || 'dine_in',
+      items: orderData.items || [],
+      special_instructions: orderData.special_instructions || '',
+      estimated_prep_time: orderData.total_prep_time || 10,
+      estimated_ready_time: orderData.estimated_ready_time || null,
+      created_at: orderData.created_at || new Date().toISOString(),
+      updated_at: orderData.updated_at || new Date().toISOString(),
     };
-    
+
+    // Optional fields — only include if present
+    if (orderData.customer_phone) dbOrderData.customer_phone = orderData.customer_phone;
+    if (orderData.customer_email) dbOrderData.customer_email = orderData.customer_email;
+    if (orderData.table_number) dbOrderData.table_number = orderData.table_number;
+    if (orderData.total_price) dbOrderData.total_price = orderData.total_price;
+
     console.log(`💾 Saving order ${orderData.order_number} to kds_orders table...`);
-    console.log('📝 Order data being sent:', JSON.stringify(dbOrderData, null, 2));
-    
+
     const { data, error } = await supabase
       .from('kds_orders')
       .insert([dbOrderData])
       .select()
       .single();
-      
+
     if (error) {
       console.error(`❌ Failed to save order ${orderData.order_number}:`, error);
       return { success: false, error };
