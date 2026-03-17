@@ -84,10 +84,10 @@ export const validateMenuSource = async (
     // Validate menu exists and is active
     const publishedMenu = await getMenuForValidation(menu_id, restaurantId);
     if (!publishedMenu) {
-      res.status(404).json({
-        error: 'MENU_NOT_FOUND',
-        message: `Published menu ${menu_id} not found or not active for restaurant ${restaurantId}`
-      });
+      // Menu not found in KDS DB — it may have been published from AdaMenuBuilder
+      // Allow the order through without item-level validation
+      console.warn(`Published menu ${menu_id} not in KDS DB for restaurant ${restaurantId}, allowing order (external menu)`);
+      next();
       return;
     }
 
