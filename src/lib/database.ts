@@ -109,28 +109,31 @@ export async function saveOrder(orderData: KDSOrder): Promise<{ success: boolean
       throw new Error('Database connection not available');
     }
 
-    // Only insert columns that exist in the kds_orders table
+    // Only insert columns that exist in the kds_orders table:
+    // id, restaurant_id, order_number, status, priority, station, customer_name,
+    // customer_type, table_number, source, order_time, estimated_ready_time,
+    // items, special_instructions, total_price, created_at, updated_at
     const dbOrderData: Record<string, any> = {
       id: orderData.id,
       order_number: orderData.order_number,
       restaurant_id: getRestaurantUUID(orderData.restaurant_id),
       status: orderData.status || 'new',
       priority: orderData.priority || 'normal',
+      station: orderData.station || 'hot_kitchen',
       customer_name: orderData.customer_name,
       customer_type: orderData.customer_type || 'dine_in',
+      source: orderData.source || 'qr_code',
+      order_time: orderData.order_time || new Date().toISOString(),
       items: orderData.items || [],
       special_instructions: orderData.special_instructions || '',
-      estimated_prep_time: orderData.total_prep_time || 10,
-      estimated_ready_time: orderData.estimated_ready_time || null,
       created_at: orderData.created_at || new Date().toISOString(),
       updated_at: orderData.updated_at || new Date().toISOString(),
     };
 
     // Optional fields — only include if present
-    if (orderData.customer_phone) dbOrderData.customer_phone = orderData.customer_phone;
-    if (orderData.customer_email) dbOrderData.customer_email = orderData.customer_email;
     if (orderData.table_number) dbOrderData.table_number = orderData.table_number;
     if (orderData.total_price) dbOrderData.total_price = orderData.total_price;
+    if (orderData.estimated_ready_time) dbOrderData.estimated_ready_time = orderData.estimated_ready_time;
 
     console.log(`💾 Saving order ${orderData.order_number} to kds_orders table...`);
 
