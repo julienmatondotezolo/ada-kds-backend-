@@ -20,6 +20,7 @@ import displayRoutes from "./routes/display";
 import incomingOrdersRoutes from "./routes/incoming-orders";
 import adaMenuOrdersRoutes from "./routes/ada-menu-orders";
 import menuAssignmentsRoutes from "./routes/menu-assignments";
+import orderStatusRoutes from "./routes/order-status";
 import { errorHandler } from "./middleware/error-handler";
 import { requestLogger } from "./middleware/request-logger";
 import { setupSwagger } from "./config/swagger";
@@ -140,6 +141,9 @@ app.use("/api/v1/restaurants/:restaurantId/orders", incomingOrdersRoutes);
 app.use("/api/v1/restaurants/:restaurantId/orders", adaMenuOrdersRoutes);
 app.use("/api/v1/restaurants/:restaurantId/stations", stationsRoutes);
 app.use("/api/v1/restaurants/:restaurantId/display", displayRoutes);
+
+// ─── Public Order Status (no auth) ────────────────────────────────────────
+app.use("/api/v1/orders", orderStatusRoutes);
 
 // ─── Menu Integration & Assignment Routes ──────────────────────────────────
 app.use("/api/v1/restaurants", menuAssignmentsRoutes);

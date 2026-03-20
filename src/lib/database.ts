@@ -270,6 +270,27 @@ export async function updateOrderStatus(orderId: string, status: string, restaur
 }
 
 /**
+ * Get a single order by ID (public — no restaurant scoping)
+ */
+export async function getOrderById(orderId: string): Promise<{ success: boolean; data?: any; error?: any }> {
+  try {
+    const isConnected = await checkDatabaseConnection();
+    if (!isConnected) throw new Error('Database connection not available');
+
+    const { data, error } = await supabase
+      .from('kds_orders')
+      .select('id, order_number, status, customer_name, items, estimated_ready_time, created_at, updated_at')
+      .eq('id', orderId)
+      .single();
+
+    if (error) return { success: false, error };
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error };
+  }
+}
+
+/**
  * Get database connection status for health checks
  */
 export function getDatabaseStatus(): {
