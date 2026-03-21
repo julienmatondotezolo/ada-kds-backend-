@@ -158,6 +158,15 @@ io.on('connection', (socket) => {
   socket.on('join-restaurant', (restaurantId) => {
     socket.join(`restaurant-${restaurantId}`);
     console.log(`Socket ${socket.id} joined restaurant ${restaurantId}`);
+
+    // Also join the UUID room if a name alias was used (e.g. 'losteria' → UUID)
+    const uuidMap: Record<string, string> = {
+      'losteria': 'c1cbea71-ece5-4d63-bb12-fe06b03d1140',
+    };
+    if (uuidMap[restaurantId]) {
+      socket.join(`restaurant-${uuidMap[restaurantId]}`);
+      console.log(`Socket ${socket.id} also joined restaurant ${uuidMap[restaurantId]}`);
+    }
   });
   
   socket.on('disconnect', () => {
