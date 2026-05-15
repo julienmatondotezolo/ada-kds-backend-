@@ -33,6 +33,7 @@ export interface KdsOrder {
   customer_name: string;
   customer_type?: string;
   table_number?: string;
+  guest_session_id?: string;
   source?: string;
   special_instructions?: string;
   order_time: string;
@@ -161,6 +162,7 @@ export function transformToKdsOrder(order: any): KdsOrder {
     customer_name: order.customer_name || order.table || "Unknown Customer",
     customer_type: order.customer_type || undefined,
     table_number: order.table_number || undefined,
+    guest_session_id: order.guest_session_id || undefined,
     source: order.source || undefined,
     special_instructions: order.special_instructions || undefined,
     order_time: orderTime.toISOString(),

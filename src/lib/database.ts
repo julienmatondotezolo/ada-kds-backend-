@@ -132,6 +132,7 @@ export async function saveOrder(orderData: KDSOrder): Promise<{ success: boolean
 
     // Optional fields — only include if present
     if (orderData.table_number) dbOrderData.table_number = orderData.table_number;
+    if (orderData.guest_session_id) dbOrderData.guest_session_id = orderData.guest_session_id;
     if (orderData.total_price) dbOrderData.total_price = orderData.total_price;
     if (orderData.estimated_ready_time) dbOrderData.estimated_ready_time = orderData.estimated_ready_time;
 

@@ -132,6 +132,7 @@ router.post("/incoming", async (req: Request, res: Response): Promise<void> => {
       customer_type = "dine_in",
       customer_phone,
       table_number,
+      guest_session_id,
       priority = "normal",
       items,
       special_instructions,
@@ -151,10 +152,21 @@ router.post("/incoming", async (req: Request, res: Response): Promise<void> => {
     const validSources = ["phone_assistant", "website", "qr_code", "pos_system"];
     if (!validSources.includes(source)) {
       res.status(400).json({
-        error: "INVALID_SOURCE", 
+        error: "INVALID_SOURCE",
         message: `Source must be one of: ${validSources.join(", ")}`
       });
       return;
+    }
+
+    // Validate guest_session_id (optional, opaque string ≤ 64 chars)
+    if (guest_session_id !== undefined && guest_session_id !== null) {
+      if (typeof guest_session_id !== "string" || guest_session_id.length === 0 || guest_session_id.length > 64) {
+        res.status(400).json({
+          error: "INVALID_GUEST_SESSION_ID",
+          message: "guest_session_id must be a non-empty string of at most 64 characters"
+        });
+        return;
+      }
     }
 
     // Calculate total estimated time and assign station
@@ -230,6 +242,7 @@ router.post("/incoming", async (req: Request, res: Response): Promise<void> => {
       customer_type,
       customer_phone: customer_phone || "",
       table_number: table_number || undefined,
+      guest_session_id: guest_session_id || undefined,
       order_time: orderTime.toISOString(),
       estimated_ready_time: readyTime.toISOString(),
       elapsed_time: 0,
