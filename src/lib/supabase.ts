@@ -31,10 +31,16 @@ export interface KdsOrder {
   priority: 'normal' | 'high' | 'urgent';
   items: KdsOrderItem[];
   customer_name: string;
+  customer_type?: string;
+  table_number?: string;
+  source?: string;
+  special_instructions?: string;
   order_time: string;
   estimated_ready_time?: string;
   elapsed_time: number; // seconds since order creation
   total_prep_time: number; // estimated total prep time in minutes
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface KdsOrderItem {
@@ -153,10 +159,16 @@ export function transformToKdsOrder(order: any): KdsOrder {
     priority: elapsedSeconds > 1200 ? 'high' : 'normal', // High priority if over 20 minutes
     items,
     customer_name: order.customer_name || order.table || "Unknown Customer",
+    customer_type: order.customer_type || undefined,
+    table_number: order.table_number || undefined,
+    source: order.source || undefined,
+    special_instructions: order.special_instructions || undefined,
     order_time: orderTime.toISOString(),
     estimated_ready_time: new Date(orderTime.getTime() + totalPrepTime * 60000).toISOString(),
     elapsed_time: elapsedSeconds,
-    total_prep_time: Math.ceil(totalPrepTime)
+    total_prep_time: Math.ceil(totalPrepTime),
+    created_at: order.created_at || orderTime.toISOString(),
+    updated_at: order.updated_at || undefined
   };
 }
 
