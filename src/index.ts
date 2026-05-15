@@ -40,12 +40,28 @@ const allowedOrigins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(",").map((o) => o.trim())
   : ["https://kds.adasystems.app"];
 
-console.log('🔗 CORS allowed origins:', allowedOrigins);
+// Localhost (any port) is always allowed for local dev against this API.
+const LOCALHOST_RE = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
+const isOriginAllowed = (origin: string | undefined): boolean => {
+  if (!origin) return true; // same-origin, curl, server-to-server
+  if (allowedOrigins.includes(origin)) return true;
+  if (LOCALHOST_RE.test(origin)) return true;
+  return false;
+};
+const corsOriginFn = (
+  origin: string | undefined,
+  cb: (err: Error | null, allow?: boolean) => void
+): void => {
+  if (isOriginAllowed(origin)) cb(null, true);
+  else cb(new Error(`Origin ${origin} not allowed by CORS`));
+};
+
+console.log('🔗 CORS allowed origins:', allowedOrigins, '(+ any localhost)');
 
 // ─── Socket.IO for real-time updates ──────────────────────────────────────
 const io = new SocketIOServer(server, {
   cors: {
-    origin: allowedOrigins,
+    origin: corsOriginFn,
     methods: ["GET", "POST"],
     credentials: true
   }
@@ -56,7 +72,7 @@ app.set('io', io);
 
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: corsOriginFn,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: [
       "Content-Type",
